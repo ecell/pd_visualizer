@@ -234,7 +234,6 @@ class Logger:
             elif isinstance(domain, Pair):
                 num_assocs += 2 * len(domain.shell_list)
             elif isinstance(domain, Multi):
-                assert getattr(domain, 'pid_shell_id_map', None), 'Cannot access pid_shell_id_map'
                 num_assocs += len(domain.pid_shell_id_map)
 
         shell_particle_association_schema = \
@@ -266,7 +265,6 @@ class Logger:
                         count += 1
 
             else: # for Multi
-                assert getattr(domain, 'pid_shell_id_map', None), 'Cannot access pid_shell_id_map'
                 for pid, shell_id in domain.pid_shell_id_map.iteritems():
                     x['shell_id'][count] = shell_id.serial
                     x['particle_id'][count] = pid.serial
