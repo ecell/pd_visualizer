@@ -12,36 +12,19 @@ INF = numpy.inf
 
 log = logging.getLogger('ecell')
 
-PARTICLES_SCHEMA = \
-    [
-        ('id', 'u8',),
-        ('species_id', 'u8',),
-        ('position', 'f8', (3,))
-        ]
-
-SHELLS_SCHEMA = \
-    [
-        ('id', 'u8',),
-        ('radius', 'f8'),
-        ('position', 'f8', (3,)),
-        ]
-
-SPECIES_SCHEMA = \
-    [
-        ('id', 'u8',),
-        ('name', 'S32',),
-        ('radius', 'f8',),
-        ('D', 'f8'), # diffusion coefficient
-        ]
-
 
 class Logger:
 
     def __init__(self, sim, logname = 'log', directory = 'data',
-                  comment = '', hdf5=False):
+                  comment = ''):
+
         self.sim = sim
+
+
         self.logname = logname
+
         self.fileCounter = 0
+
         self.directory = directory
         try:
             os.mkdir(directory)
@@ -58,20 +41,11 @@ class Logger:
         self.writeTimecourse()
 
         # Added by sakurai@advancesoft.jp
-        if hdf5:
-            HDF5_filename = self.logname + '.hdf5'
-            HDF5_path = self.directory + os.sep + HDF5_filename
-            # HDF5 file must be removed before logParticles
-            if os.path.exists(HDF5_path):
-                os.remove(HDF5_path)
-            self.HDF5_file = h5py.File(HDF5_path)
-        else:
-            self.HDF5_file = None
-
-    def __del__(self):
-        pass
-        #if self.HDF5_file is not None:
-        #    self.HDF5_file.close()
+        self.HDF5_filename = self.logname + '.hdf5'
+        self.HDF5_path = self.directory + os.sep + self.HDF5_filename
+        # HDF5 file must be removed before logParticles
+        if os.path.exists(self.HDF5_path) and os.path.isfile(self.HDF5_path):
+            os.remove(self.HDF5_path)
 
     def setInterval(self, interval):
         self.interval = interval
@@ -88,6 +62,7 @@ class Logger:
         self.nextTime = self.lastTime + self.particleOutInterval
 
     def prepareTimecourseFile(self, comment):
+
         self.timecourseFilename = self.logname + '_tc' + '.dat'
         self.timecourseFile = open(self.directory + os.sep + \
                                     self.timecourseFilename, 'w')
@@ -103,7 +78,9 @@ class Logger:
         self.timecourseFile.write('#' + s + '\n')
 
     def writeTimecourse(self):
-        data = []
+        data = [
+            ]
+
         self.timecourseFile.write('%g' % self.sim.t + '\t')
         self.timecourseFile.write('\t'.join(
             str(len(self.sim.getParticlePool(i.type.id))) \
@@ -136,41 +113,41 @@ class Logger:
 
         self.fileCounter += 1
 
-    def createDataGroup(self):
-        if self.HDF5_file is None:
-            return
-        data_group = self.HDF5_file.create_group('data')
-        data_group.attrs['world_size'] = self.sim.getWorldSize()
-        return data_group
-
-    def writeSpeciesByHDF5(self):
-        if self.HDF5_file is None:
-            return
-
-        # Create species dataset on top level of HDF5 hierarchy
-
-        num_species = len(self.sim.speciesList)
-
-        species_dset = self.HDF5_file.create_dataset('species', (num_species,), SPECIES_SCHEMA)
-        count = 0
-        for species in self.sim.speciesList.itervalues():
-            species_dset[count] = (species.type.id.serial,
-                                   species.type['id'],
-                                   species.radius,
-                                   species.D)
-            count += 1
-
     def writeParticlesByHDF5(self):
+
         "This function was created by sakurai@advancesoft.jp"
-        if self.HDF5_file is None:
-            return
 
-        data_group = self.HDF5_file['data']
+        HDF5_file = h5py.File(self.HDF5_path)
 
-        group_name = unicode(self.nextTime)
-        if group_name in data_group:
-            return
-        time_group = data_group.create_group(group_name)
+        if HDF5_file.get('data', None) == None:
+            data_group = HDF5_file.create_group('data')
+            data_group.attrs['world_size'] = self.sim.getWorldSize()
+
+            # Create species dataset on top level of HDF5 hierarchy
+
+            num_species = len(self.sim.speciesList)
+            species_schema = \
+                [
+                 ('id', 'u8',),
+                 ('name', 'S32',),
+                 ('radius', 'f8',),
+                 ('D', 'f8'), # diffusion coefficient
+                 ]
+
+            species_dset = HDF5_file.create_dataset('species', (num_species,), species_schema)
+
+            count = 0
+            for species in self.sim.speciesList.itervalues():
+                species_dset[count] = (species.type.id.serial,
+                                       species.type['id'],
+                                       species.radius,
+                                       species.D)
+                count += 1
+
+        else:
+            data_group = HDF5_file['data']
+
+        time_group = data_group.require_group(unicode(self.nextTime))
         time_group.attrs['t'] = self.nextTime
 
         # Create particles dataset on the time group
@@ -180,8 +157,15 @@ class Logger:
             pid_list = self.sim.particlePool[ sid ]
             num_particles += len(pid_list)
 
+        particles_schema = \
+            [
+                ('id', 'u8',),
+                ('species_id', 'u8',),
+                ('position', 'f8', (3,))
+            ]
+
         x = numpy.zeros((num_particles,),
-                        dtype = numpy.dtype(PARTICLES_SCHEMA))
+                        dtype = numpy.dtype(particles_schema))
 
         count = 0
         for sid, pid_set in self.sim.particlePool.iteritems():
@@ -195,11 +179,16 @@ class Logger:
 
         dummy = time_group.create_dataset('particles', data = x)
 
-    def writeDomainsByHDF5(self):
-        if self.HDF5_file is None:
-            return
+        HDF5_file.close()
 
-        data_group = self.HDF5_file['data']        
+    def writeDomainsByHDF5(self):
+
+        "This function was created by sakurai@advancesoft.jp"
+
+        HDF5_file = h5py.File(self.HDF5_path, 'a')
+
+        # Require data group
+        data_group = HDF5_file.require_group('data')
         data_group.attrs['world_size'] = self.sim.getWorldSize()
 
         # Require time group
@@ -208,11 +197,18 @@ class Logger:
 
         # Create shell dataset on the time group
 
+        shells_schema = \
+            [
+                ('id', 'u8',),
+                ('radius', 'f8'),
+                ('position', 'f8', (3,)),
+            ]
+
         num_shells = 0
         for domain in self.sim.domains.itervalues():
             num_shells += len(domain.shell_list)
 
-        x = numpy.zeros((num_shells,), dtype = numpy.dtype(SHELLS_SCHEMA))
+        x = numpy.zeros((num_shells,), dtype = numpy.dtype(shells_schema))
 
         count = 0
         for did, domain in self.sim.domains.iteritems():
@@ -234,6 +230,7 @@ class Logger:
             elif isinstance(domain, Pair):
                 num_assocs += 2 * len(domain.shell_list)
             elif isinstance(domain, Multi):
+                assert getattr(domain, 'pid_shell_id_map', None), 'Cannot access pid_shell_id_map'
                 num_assocs += len(domain.pid_shell_id_map)
 
         shell_particle_association_schema = \
@@ -265,6 +262,7 @@ class Logger:
                         count += 1
 
             else: # for Multi
+                assert getattr(domain, 'pid_shell_id_map', None), 'Cannot access pid_shell_id_map'
                 for pid, shell_id in domain.pid_shell_id_map.iteritems():
                     x['shell_id'][count] = shell_id.serial
                     x['particle_id'][count] = pid.serial
@@ -319,25 +317,33 @@ class Logger:
 
         dummy = time_group.create_dataset('domains', data = x)
 
+        HDF5_file.close()
+
     def log(self):
+
         self.logTimeCourse()
         self.logParticles()
 
     def logTimeCourse(self):
+
         if self.sim.lastReaction:
             self.writeTimecourse()
+
 
     def logParticles(self):
         sim = self.sim
         if self.nextTime <= sim.t + sim.dt:
-            self.writeDomainsByHDF5()
+            #if __debug__: log.info( 'log %g' % self.nextTime )
+
             sim.stop(self.nextTime)
-            self.writeParticles()
-            self.writeParticlesByHDF5()
+#            self.writeParticles()
+            self.writeParticlesByHDF5() # added by sakurai@advancesoft.jp 
+            self.writeDomainsByHDF5()  # added by sakurai@advancesoft.jp 
+
             self.nextTime += self.particleOutInterval
 
-    def start(self):
-        self.createDataGroup()
-        self.writeSpeciesByHDF5()
-        self.writeParticles()
-        self.writeParticlesByHDF5()
+
+
+
+
+

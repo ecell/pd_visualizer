@@ -1,7 +1,7 @@
 """
  default_settigs.py:
 
-   Default settings for visualizer
+    Default settings for visualizer
 
 """
 
@@ -178,3 +178,16 @@ pfilter_sid_map = None
 # particle species_id mapping function:
 #   unsigned int*8 display_species_id pfilter_sid_map_func( unsigned int*8 species_id )
 pfilter_sid_map_func = None
+
+#-----------------------------
+# Micro fluorimetry settings
+#-----------------------------
+fluorimetry_display = False
+fluorimetry_wave_length = 546.0e-9
+fluorimetry_luminescence_color = rgb_colors.RGB_GREEN
+fluorimetry_axial_voxel_number = 100
+fluorimetry_background_color = rgb_colors.RGB_BLACK
+fluorimetry_shadow_display = False
+fluorimetry_accumulation_mode = 0 # 0:to max, 1:to sum
+fluorimetry_brightness = 1.0
+

@@ -4,6 +4,17 @@ visualizer.py:
     Visialization module of particles and shells
      in HDF5 file outputed from E-Cell simulator
 
+    Revision 0 (2010/1/25 released)
+        First release of this module.
+     
+    Revision 1 (2010/2/26 released)
+        New features:
+            - Blurry effect of particles is available.
+            - Exception class is added for visualizer.
+        Bug fixes:
+            - Fixed a bug caused that newly created Settings object has history
+              of the old objects.
+
     This module uses following third-party libraries:
       - VTK (Visualization Tool Kit)
       - h5py (Python biding to HDF5 library)
@@ -17,6 +28,8 @@ visualizer.py:
 import os
 import sys
 import tempfile
+import math
+import time
 
 import h5py
 import vtk
@@ -25,6 +38,21 @@ import numpy
 import domain_kind_constants
 import rgb_colors
 import default_settings
+import copy
+
+
+class VisualizerError(Exception):
+
+    "Exception class for visualizer"
+
+    def __init__(self, info):
+        self.__info = info
+
+    def __repr__(self):
+        return self.__info
+
+    def __str__(self):
+        return self.__info
 
 
 class Settings(object):
@@ -39,7 +67,7 @@ class Settings(object):
 
     def __init__(self, user_settings_dict = None):
 
-        settings_dict = default_settings.__dict__
+        settings_dict = default_settings.__dict__.copy()
 
         if user_settings_dict != None:
             if type(user_settings_dict) != type({}):
@@ -49,7 +77,11 @@ class Settings(object):
 
         for key, val in settings_dict.items():
             if key[0] != '_': # Data skip for private variables in setting_dict.
-                setattr(self, key, val)
+                if type(val) == type({}) or type(val) == type([]):
+                    copy_val = copy.deepcopy(val)
+                else:
+                    copy_val = val
+                setattr(self, key, copy_val)
 
 
     def __set_data(self, key, val):
@@ -148,6 +180,26 @@ class Settings(object):
         self.__set_data('axis_annotation_color', color)
 
 
+    def set_fluorimetry(self,
+                         display = None,
+                         wave_length = None,
+                         luminescence_color = None,
+                         axial_voxel_number = None,
+                         background_color = None,
+                         shadow_display = None,
+                         accumulation_mode = None,
+                         brightness = None
+                         ):
+        self.__set_data('fluorimetry_display', display)
+        self.__set_data('fluorimetry_wave_length', wave_length)
+        self.__set_data('fluorimetry_luminescence_color', luminescence_color)
+        self.__set_data('fluorimetry_axial_voxel_number', axial_voxel_number)
+        self.__set_data('fluorimetry_background_color', background_color)
+        self.__set_data('fluorimetry_shadow_display', shadow_display)
+        self.__set_data('fluorimetry_accumulation_mode', accumulation_mode)
+        self.__set_data('fluorimetry_brightness', brightness)
+
+
     def set_pattrs(self,
                    species_id,
                    color = None,
@@ -170,9 +222,10 @@ class Settings(object):
                    opacity = None
                    ):
         if not domain_kind_constants.DOMAIN_KIND_NAME.has_key(domain_kind):
-            print 'Illegal domain_kind was set on set_dattr function: ', domain_kind
-            print 'Please choose from 1:Single 2:Pair 3:Multi.'
-            sys.exit()
+            error = 'Illegal domain_kind is set on set_dattrs function:'
+            error += ' %d\n' % domain_kind
+            error += 'Please choose from 1:Single 2:Pair 3:Multi.'
+            raise VisualizerError(error)
         elif not self.user_dattrs.has_key(domain_kind):
             self.user_dattrs[domain_kind] = {}
 
@@ -246,14 +299,14 @@ class Visualizer(object):
         if isinstance(user_settings, Settings):
             self.__settings = user_settings
         else:
-            print 'Illegal argument type for user_settings in constructor of visualizer'
-            sys.exit()
+            raise VisualizerError \
+                ('Illegal argument type for user_settings in constructor of Visualizer')
 
         if type(HDF5_file_path_list) == type(''):
             HDF5_file_path_list = [HDF5_file_path_list]
         elif type(HDF5_file_path_list) != type([]):
-            print 'Illegal argument type for HDF5_file_path_list in constructor of visualizer'
-            sys.exit()
+            raise VisualizerError \
+                ('Illegal argument type for HDF5_file_path_list in constructor of Visualizer')
 
         self.__HDF5_file_path_list = HDF5_file_path_list
         self.__renderer = vtk.vtkRenderer()
@@ -292,8 +345,7 @@ class Visualizer(object):
         elif location == 3:
             return (1.0 - width - offset, 1.0 - height - offset)
         else:
-            print 'Illegal legend position: ', location
-            sys.exit()
+            raise VisualizerError('Illegal legend position: %d' % location)
 
 
     def __create_particle_attrs(self, species_dataset):
@@ -307,7 +359,11 @@ class Visualizer(object):
         species_dict = {}
         for x in species_array:
             species_id = x['id']
-            species_dict[species_id] = {'name':x['name'], 'radius':x['radius']}
+            species_dict[species_id] = {
+                                        'name':x['name'],
+                                        'radius':x['radius'],
+                                        'D':x['D']
+                                        }
 
         # Set species_id map
 
@@ -318,9 +374,10 @@ class Visualizer(object):
                 display_species_id = self.__settings.pfilter_sid_map_func(species_id)
                 if(type(display_species_id) != type(0) and
                    type(display_species_id) != type(0L)):
-                    print 'Imperfect pfilter_sid_map_func'
-                    print 'Cannot find key of species_id in the map: species_id = ', species_id
-                    sys.exit()
+                    error_info = 'Imperfect pfilter_sid_map_func\n'
+                    error_info += 'Cannot find key of species_id in the map:'
+                    error_info += ' species_id = %d' % species_id
+                    raise VisualizerError(error_info)
                 else:
                     self.__species_idmap[species_id] = display_species_id
 
@@ -330,9 +387,10 @@ class Visualizer(object):
             # Check the user map
             for species_id in species_dict.keys():
                 if not self.__species_idmap.has_key(species_id):
-                    print 'Imperfect pfilter_sid_map'
-                    print 'Cannot find key of species_id in the map: species_id = ', species_id
-                    sys.exit()
+                    error_info = 'Imperfect pfilter_sid_map\n'
+                    error_info += 'Cannot find key of species_id in the map:'
+                    error_info += ' species_id = %d' % species_id
+                    raise VisualizerError(error_info)
 
         else:
             # Set default map
@@ -356,6 +414,7 @@ class Visualizer(object):
             # Get default name and radius from HDF5 data
             name = species_dict[species_id]['name']
             radius = species_dict[species_id]['radius']
+            D = species_dict[species_id]['D']
 
             # Get default color and opacity from default_settings
             if self.__settings.default_pattrs.has_key(species_id):
@@ -390,7 +449,8 @@ class Visualizer(object):
                                          'color':color,
                                          'opacity':opacity,
                                          'radius':radius,
-                                         'name':name
+                                         'name':name,
+                                         'D':D
                                          }
 
         # Redefine for legend of particle species
@@ -513,8 +573,10 @@ class Visualizer(object):
             # Create legends of particle speices
             count = 0
             for species_id in self.__mapped_species_idset:
-                self.__species_legend.SetEntryColor(count, self.__pattrs[species_id]['color'])
-                self.__species_legend.SetEntryString(count, self.__pattrs[species_id]['name'])
+                self.__species_legend.SetEntryColor \
+                    (count, self.__pattrs[species_id]['color'])
+                self.__species_legend.SetEntryString \
+                    (count, self.__pattrs[species_id]['name'])
                 self.__species_legend.SetEntrySymbol(count, sphere.GetOutput())
                 count += 1
 
@@ -522,8 +584,10 @@ class Visualizer(object):
             offset = count
             count = 0
             for kind, name in domain_kind_constants.DOMAIN_KIND_NAME.items():
-                self.__species_legend.SetEntryColor(offset + count, self.__get_domain_color(kind))
-                self.__species_legend.SetEntrySymbol(offset + count, sphere.GetOutput())
+                self.__species_legend.SetEntryColor \
+                    (offset + count, self.__get_domain_color(kind))
+                self.__species_legend.SetEntrySymbol \
+                    (offset + count, sphere.GetOutput())
                 self.__species_legend.SetEntryString(offset + count, name)
                 count += 1
 
@@ -615,10 +679,95 @@ class Visualizer(object):
 
                 sphere_actor = vtk.vtkActor()
                 sphere_actor.SetMapper(mapper)
-                sphere_actor.GetProperty().SetColor(self.__pattrs[species_id]['color'])
-                sphere_actor.GetProperty().SetOpacity(self.__pattrs[species_id]['opacity'])
+                sphere_actor.GetProperty().SetColor \
+                    (self.__pattrs[species_id]['color'])
+                sphere_actor.GetProperty().SetOpacity \
+                    (self.__pattrs[species_id]['opacity'])
 
                 self.__renderer.AddActor(sphere_actor)
+
+
+    def __create_blurry_particles(self, particles_dataset):
+
+        # Data transfer from HDF5 dataset to numpy array for fast access
+        particles_array = numpy.zeros(shape = particles_dataset.shape,
+                                      dtype = particles_dataset.dtype)
+
+        particles_dataset.read_direct(particles_array)
+
+        self.__renderer.SetBackground(self.__settings.fluorimetry_background_color)
+
+        nx = ny = nz = self.__settings.fluorimetry_axial_voxel_number
+
+        # Add points of particle
+        points = vtk.vtkPoints()
+        for x in particles_array:
+            pos = x['position']
+            points.InsertNextPoint(pos[0] / self.__world_size,
+                                   pos[1] / self.__world_size,
+                                   pos[2] / self.__world_size)
+
+        poly_data = vtk.vtkPolyData()
+        poly_data.SetPoints(points)
+        poly_data.ComputeBounds()
+
+        # Calc standard deviation of gauss distribution function
+        wave_length = self.__settings.fluorimetry_wave_length
+        sigma = 0.5 * wave_length / self.__world_size
+
+        # Create guassian splatter
+        gs = vtk.vtkGaussianSplatter()
+        gs.SetInput(poly_data)
+        gs.SetSampleDimensions(nx, ny, nz)
+        gs.SetRadius(sigma)
+        gs.SetExponentFactor(-0.5)
+        gs.ScalarWarpingOff()
+        gs.SetModelBounds(-sigma, 1.0 + sigma,
+                          - sigma, 1.0 + sigma,
+                          - sigma, 1.0 + sigma)
+
+        if self.__settings.fluorimetry_accumulation_mode == 0:
+            gs.SetAccumulationModeToMax()
+        elif self.__settings.fluorimetry_accumulation_mode == 1:
+            gs.SetAccumulationModeToSum()
+        else:
+            raise VisualizerError('Illegal fluorimetry_accumulation_mode')
+
+        # Create filter for volume rendering
+        filter = vtk.vtkImageShiftScale()
+        # Scales to unsigned char
+        filter.SetScale(255.0 * self.__settings.fluorimetry_brightness)
+        filter.ClampOverflowOn()
+        filter.SetOutputScalarTypeToUnsignedChar()
+        filter.SetInputConnection(gs.GetOutputPort())
+
+        # Create volume property
+        opacity_tfunc = vtk.vtkPiecewiseFunction()
+        opacity_tfunc.AddPoint(0, 0.0)
+        opacity_tfunc.AddPoint(255, 1.0)
+
+        color = self.__settings.fluorimetry_luminescence_color
+        color_tfunc = vtk.vtkColorTransferFunction()
+        color_tfunc.AddRGBPoint(0, color[0], color[1], color[2])
+
+        property = vtk.vtkVolumeProperty()
+        property.SetColor(color_tfunc)
+        property.SetScalarOpacity(opacity_tfunc)
+        property.SetInterpolationTypeToLinear()
+
+        if self.__settings.fluorimetry_shadow_display:
+            property.ShadeOn()
+        else:
+            property.ShadeOff()
+
+        mapper = vtk.vtkVolumeTextureMapper2D()
+        mapper.SetInputConnection(filter.GetOutputPort())
+
+        volume = vtk.vtkVolume()
+        volume.SetMapper(mapper)
+        volume.SetProperty(property)
+
+        self.__renderer.AddVolume(volume)
 
 
     def __create_shells(self,
@@ -654,14 +803,14 @@ class Visualizer(object):
             try:
                 domain_id = domain_shell_assoc_dict[shell_id]
             except KeyError:
-                print 'Illegal shell_id was found in dataset of domain_shell_association!'
-                sys.exit()
+                raise VisualizerError \
+                    ('Illegal shell_id is found in dataset of domain_shell_association!')
 
             try:
                 domain_kind = domains_dict[domain_id]
             except KeyError:
-                print 'Illegal domain_id was found in domains dataset!'
-                sys.exit()
+                raise VisualizerError \
+                    ('Illegal domain_id is found in domains dataset!')
 
             if self.__get_domain_opacity(domain_kind) > 0.0:
 
@@ -676,9 +825,11 @@ class Visualizer(object):
 
                 sphere_actor = vtk.vtkActor()
                 sphere_actor.SetMapper(mapper)
-                sphere_actor.GetProperty().SetColor(self.__get_domain_color(domain_kind))
+                sphere_actor.GetProperty().SetColor \
+                    (self.__get_domain_color(domain_kind))
                 sphere_actor.GetProperty().SetRepresentationToWireframe()
-                sphere_actor.GetProperty().SetOpacity(self.__get_domain_opacity(domain_kind))
+                sphere_actor.GetProperty().SetOpacity \
+                    (self.__get_domain_opacity(domain_kind))
 
                 self.__renderer.AddActor(sphere_actor)
 
@@ -696,7 +847,8 @@ class Visualizer(object):
                 (0, self.__settings.time_legend_format % time)
             self.__renderer.AddActor(self.__time_legend)
 
-        if self.__settings.species_legend_display:
+        if(self.__settings.species_legend_display and \
+           not self.__settings.fluorimetry_display) :
             self.__renderer.AddActor(self.__species_legend)
 
         for x in self.__plane_list:
@@ -714,8 +866,8 @@ class Visualizer(object):
             if os.path.isfile(image_file_name):
                 os.remove(image_file_name)
             else:
-                print 'Cannot overwrite image file:' + image_file_name
-                sys.exit()
+                raise VisualizerError \
+                    ('Cannot overwrite image file: ' + image_file_name)
 
         w2i = vtk.vtkWindowToImageFilter()
         w2i.SetInput(self.__window)
@@ -729,9 +881,9 @@ class Visualizer(object):
         elif image_file_type == '.tif':
             writer = vtk.vtkTIFFWriter()
         else:
-            print 'Illegal image-file type: ', image_file_name
-            print 'Please choose from "bmp","jpg","png","tif".'
-            sys.exit()
+            error_info = 'Illegal image-file type: ' + image_file_type + '\n'
+            error_info += 'Please choose from "bmp","jpg","png","tif".'
+            raise VisualizerError(error_info)
 
         writer.SetInput(w2i.GetOutput())
         writer.SetFileName(image_file_name)
@@ -748,17 +900,14 @@ class Visualizer(object):
 
         # Check empty path list
         if len(self.__HDF5_file_path_list) == 0:
-            print 'Empty HDF5_file_path_list.'
-            print 'Please set it.'
-            sys.exit()
+            raise VisualizerError('Empty HDF5_file_path_list.\n Please set it.')
 
         # Check accessable to the path list
         for path in self.__HDF5_file_path_list:
             if(not os.path.exists(path) or
                not os.path.isfile(path) or
                not os.access(path, os.R_OK)):
-                print 'Cannot accsess HDF5 file: ', path
-                sys.exit()
+                raise VisualizerError('Cannot accsess HDF5 file: ' + path)
 
         # Get time seuqence in data group of HDF5 files
         #   and sort the loading order
@@ -783,9 +932,9 @@ class Visualizer(object):
             HDF5_file.close()
 
         if len(particles_time_sequence) == 0:
-            print 'Cannot find particles dataset in HDF5_file_path_list:', \
-                self.__HDF5_file_path_list
-            sys.exit()
+            raise VisualizerError \
+                    ('Cannot find particles dataset in HDF5_file_path_list: ' \
+                      + self.__HDF5_file_path_list)
 
         # Sort ascending time order
         particles_time_sequence.sort(lambda a, b:cmp(a[0], b[0]))
@@ -813,34 +962,38 @@ class Visualizer(object):
 
             self.__reset_actors()
             self.__activate_environment(time)
-            self.__create_particles(time_group['particles'])
 
-            for (shells_time,
-                 shells_HDF5_file_name,
-                 shells_time_group_name) in shells_time_sequence:
+            if self.__settings.fluorimetry_display:
+                self.__create_blurry_particles(time_group['particles'])
+            else:
+                self.__create_particles(time_group['particles'])
 
-                if time >= shells_time: # Backward time search
+                for (shells_time,
+                     shells_HDF5_file_name,
+                     shells_time_group_name) in shells_time_sequence:
 
-                    open_flag = False
-                    if os.path.samefile(shells_HDF5_file_name, HDF5_file_name):
-                        shells_HDF5_file = HDF5_file
-                    else:
-                        shells_HDF5_file = h5py.File(shells_HDF5_file_name, 'r')
-                        open_flag = True
+                    if time >= shells_time: # Backward time search
 
-                    shells_data_group = shells_HDF5_file['data']
-                    shells_time_group = shells_data_group[shells_time_group_name]
-                    shells_dataset = shells_time_group['shells']
+                        open_flag = False
+                        if os.path.samefile(shells_HDF5_file_name, HDF5_file_name):
+                            shells_HDF5_file = HDF5_file
+                        else:
+                            shells_HDF5_file = h5py.File(shells_HDF5_file_name, 'r')
+                            open_flag = True
 
-                    domain_shell_assoc = shells_time_group['domain_shell_association']
-                    domain_dataset = shells_time_group['domains']
+                        shells_data_group = shells_HDF5_file['data']
+                        shells_time_group = shells_data_group[shells_time_group_name]
+                        shells_dataset = shells_time_group['shells']
 
-                    self.__create_shells(shells_dataset,
-                                         domain_shell_assoc,
-                                         domain_dataset)
-                    if open_flag:
-                        shells_HDF5_file.close()
-                    break
+                        domain_shell_assoc = shells_time_group['domain_shell_association']
+                        domain_dataset = shells_time_group['domains']
+
+                        self.__create_shells(shells_dataset,
+                                             domain_shell_assoc,
+                                             domain_dataset)
+                        if open_flag:
+                            shells_HDF5_file.close()
+                        break
 
             image_file_name = \
                 os.path.join(image_file_dir,
@@ -883,8 +1036,8 @@ class Visualizer(object):
             if os.path.isfile(output_movie_filename):
                 os.remove(output_movie_filename)
             else:
-                print 'Cannot overwrite movie file:' + output_movie_filename
-                sys.exit()
+                raise VisualizerError \
+                    ('Cannot overwrite movie file: ' + output_movie_filename)
 
         # Set FFMPEG options
         options = self.__settings.ffmpeg_additional_options \
@@ -903,9 +1056,8 @@ class Visualizer(object):
                     os.system(search_path + ' ' + options)
                     return
 
-        print 'Cannot access ffmpeg.'
-        print 'Please set ffmpeg_bin_path correctly.'
-        sys.exit()
+        raise VisualizerError \
+            ('Cannot access ffmpeg. Please set ffmpeg_bin_path correctly.')
 
 
     def output_movie(self, movie_file_dir, image_tmp_root = None):

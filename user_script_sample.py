@@ -8,16 +8,16 @@ from rgb_colors import *
 import visualizer
 import glob
 
-# Case1:Most simple script
+# Case 1: Most simple script
 
 vs = visualizer.Visualizer('./hdf5_data/dimer.hdf5')
 vs.output_movie('./')
 
-# Case2:Custom Particle Snapshot
+# Case 2: Custom Particle Snapshot
 
 settings = visualizer.Settings()
-settings.set_image(file_name_format = 'dimer_%04d.png')
-settings.ffmpeg_movie_file_name = 'dimer.mp4'
+settings.set_image(file_name_format = 'case2_%04d.png')
+settings.ffmpeg_movie_file_name = 'case2.mp4'
 settings.add_plane_surface (origin = (0.0, 0.0, 0.0),
                             axis1 = (1.0, 0.0, 0.0),
                             axis2 = (0.0, 0.0, 1.0),
@@ -27,20 +27,19 @@ vs = visualizer.Visualizer('./hdf5_data/dimer.hdf5', settings)
 vs.output_snapshots(image_file_dir = './images')
 vs.make_movie(image_file_dir = './images', movie_file_dir = './')
 
-# Case3:Focused Snapshot
+# Case 3: Focused Snapshot
 
 settings = visualizer.Settings({'camera_view_angle':5})
-
-settings.set_image(file_name_format = 'dimer_forcused_%04d.png')
-settings.set_ffmpeg(movie_file_name = 'dimer_forcused.mp4')
+settings.set_image(file_name_format = 'case3_%04d.png')
+settings.set_ffmpeg(movie_file_name = 'case3.mp4')
 
 vs = visualizer.Visualizer('./hdf5_data/dimer.hdf5', settings)
 vs.output_movie(movie_file_dir = './')
 
-# Case4:Filtered Particle Snapshot
+# Case 4: Filtered Particle Snapshot
 
-settings.set_image(file_name_format = 'dimer_filtered_%04d.png')
-settings.set_ffmpeg(movie_file_name = 'dimer_filtered.mp4')
+settings.set_image(file_name_format = 'case4_%04d.png')
+settings.set_ffmpeg(movie_file_name = 'case4.mp4')
 
 def user_pfilter_sid_func(display_species_id):
     if(display_species_id == 1):
@@ -56,10 +55,33 @@ def user_pfilter_sid_map_func(species_id): # return display_species_id
 
 settings.pfilter_sid_func = user_pfilter_sid_func
 settings.pfilter_sid_map_func = user_pfilter_sid_map_func
-
 settings.set_dattrs(1, color = RGB_BLUE)
 
 vs = visualizer.Visualizer(glob.glob('./hdf5_data/*.hdf5'), settings)
 vs.output_movie(movie_file_dir = './')
 
+### Blurry effect cases (Case 5-7)
+### (New feature of revision 1)
+
+settings = visualizer.Settings()
+
+# Case 5: Accumulation mode to max (This is default mode)
+settings.set_fluorimetry(display = True)
+settings.set_ffmpeg(movie_file_name = 'case5.mp4')
+settings.set_image(file_name_format = 'case5_%04d.png')
+vs = visualizer.Visualizer('./hdf5_data/dimer.hdf5', settings)
+vs.output_snapshots(image_file_dir = './images')
+vs.make_movie(image_file_dir = './images', movie_file_dir = './')
+
+# Case 6: Accumulation mode to sum (opacity_scaling = 1.0)
+settings.set_fluorimetry(accumulation_mode = 1)
+settings.set_ffmpeg(movie_file_name = 'case6.mp4')
+vs.output_movie(movie_file_dir = './')
+
+# Case 7: Accumulation mode to sum (opacity_scaling = 0.5)
+settings.set_fluorimetry(brightness = 0.5)
+settings.set_ffmpeg(movie_file_name = 'case7.mp4')
+vs.output_movie(movie_file_dir = './')
+
 print 'finished'
+
