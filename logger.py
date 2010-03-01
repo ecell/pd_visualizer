@@ -138,8 +138,8 @@ class Logger:
 
             count = 0
             for species in self.sim.speciesList.itervalues():
-                species_dset[count] = (species.type.id.serial,
-                                       species.type['id'],
+                species_dset[count] = (species.id.serial,
+                                       species.id, # Todo, species.name.
                                        species.radius,
                                        species.D)
                 count += 1
