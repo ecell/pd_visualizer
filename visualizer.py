@@ -1073,15 +1073,20 @@ class Visualizer(object):
         else:
             image_tmp_dir = tempfile.mkdtemp(dir = image_tmp_root)
 
-        snapshot_file_list = self.output_snapshots(image_tmp_dir)
-        self.make_movie(image_tmp_dir, movie_file_dir)
+        try:
+            snapshot_file_list = self.output_snapshots(image_tmp_dir)
+            self.make_movie(image_tmp_dir, movie_file_dir)
 
-        # Remove snapshots on temporary directory
-        for snapshot_file in snapshot_file_list:
-            if(os.path.exists(snapshot_file) and
-               os.path.isfile(snapshot_file)):
-                os.remove(snapshot_file)
+            # Remove snapshots on temporary directory
+            # (only if making snapshots succeeded)
+            for snapshot_file in snapshot_file_list:
+                if(os.path.exists(snapshot_file) and
+                   os.path.isfile(snapshot_file)):
+                    os.remove(snapshot_file)
 
-        # Remove temporary directory if it is empty.
-        if len(os.listdir(image_tmp_dir)) == 0:
-            os.rmdir(image_tmp_dir)
+        except VisualizerError, e:
+            raise
+        finally:
+            # Remove temporary directory if it is empty.
+            if len(os.listdir(image_tmp_dir)) == 0:
+                os.rmdir(image_tmp_dir)
