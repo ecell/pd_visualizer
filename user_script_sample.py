@@ -8,9 +8,11 @@ from rgb_colors import *
 import visualizer
 import glob
 
+DATA_FILE = './data/dimer.hdf5'
+DATA_FILES = './data/*.hdf5'
 # Case 1: Most simple script
 
-vs = visualizer.Visualizer('./hdf5_data/dimer.hdf5')
+vs = visualizer.Visualizer(DATA_FILE)
 vs.output_movie('./')
 
 # Case 2: Custom Particle Snapshot
@@ -23,7 +25,7 @@ settings.add_plane_surface (origin = (0.0, 0.0, 0.0),
                             axis2 = (0.0, 0.0, 1.0),
                             color = RGB_LIGHT_GREEN)
 
-vs = visualizer.Visualizer('./hdf5_data/dimer.hdf5', settings)
+vs = visualizer.Visualizer(DATA_FILE, settings)
 vs.output_snapshots(image_file_dir = './images')
 vs.make_movie(image_file_dir = './images', movie_file_dir = './')
 
@@ -33,7 +35,7 @@ settings = visualizer.Settings({'camera_view_angle':5})
 settings.set_image(file_name_format = 'case3_%04d.png')
 settings.set_ffmpeg(movie_file_name = 'case3.mp4')
 
-vs = visualizer.Visualizer('./hdf5_data/dimer.hdf5', settings)
+vs = visualizer.Visualizer(DATA_FILE, settings)
 vs.output_movie(movie_file_dir = './')
 
 # Case 4: Filtered Particle Snapshot
@@ -57,7 +59,7 @@ settings.pfilter_sid_func = user_pfilter_sid_func
 settings.pfilter_sid_map_func = user_pfilter_sid_map_func
 settings.set_dattrs(1, color = RGB_BLUE)
 
-vs = visualizer.Visualizer(glob.glob('./hdf5_data/*.hdf5'), settings)
+vs = visualizer.Visualizer(glob.glob(DATA_FILES), settings)
 vs.output_movie(movie_file_dir = './')
 
 ### Blurry effect cases (Case 5-7)
@@ -69,7 +71,7 @@ settings = visualizer.Settings()
 settings.set_fluorimetry(display = True)
 settings.set_ffmpeg(movie_file_name = 'case5.mp4')
 settings.set_image(file_name_format = 'case5_%04d.png')
-vs = visualizer.Visualizer('./hdf5_data/dimer.hdf5', settings)
+vs = visualizer.Visualizer(DATA_FILE, settings)
 vs.output_snapshots(image_file_dir = './images')
 vs.make_movie(image_file_dir = './images', movie_file_dir = './')
 
