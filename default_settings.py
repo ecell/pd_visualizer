@@ -153,15 +153,15 @@ plane_surface_list = []
 # Filters for particles
 #-----------------------------
 # function of display filter by particle_id:
-#   bool pfilter_pid_func( unsigned int*8 particle_id )
+#   bool pfilter_pid_func(unsigned int*8 particle_id)
 pfilter_pid_func = None
 
 # function of display filter by position:
-#   bool pfilter_pos_func( double pos[3] )
+#   bool pfilter_pos_func(double pos[3])
 pfilter_pos_func = None
 
 # function of display filter by species_id:
-#   pattr pfilter_sid_func( unsigned int*8 species_id )
+#   pattr pfilter_sid_func(unsigned int*8 species_id)
 pfilter_sid_func = None
 
 # particle species_id map
@@ -176,7 +176,7 @@ pfilter_sid_func = None
 pfilter_sid_map = None
 
 # particle species_id mapping function:
-#   unsigned int*8 display_species_id pfilter_sid_map_func( unsigned int*8 species_id )
+#   unsigned int*8 display_species_id pfilter_sid_map_func(unsigned int*8 species_id)
 pfilter_sid_map_func = None
 
 #-----------------------------
