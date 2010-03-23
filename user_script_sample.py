@@ -8,59 +8,59 @@ from rgb_colors import *
 import visualizer
 import glob
 
-DATA_FILE = './data/dimer.hdf5'
-DATA_FILES = './data/*.hdf5'
+DATA_FILE = './hdf5_data/dimer.hdf5'
+DATA_FILES = './hdf5_data/*.hdf5'
 # Case 1: Most simple script
 
-vs = visualizer.Visualizer(DATA_FILE)
-vs.output_movie('./')
-
-# Case 2: Custom Particle Snapshot
-
-settings = visualizer.Settings()
-settings.set_image(file_name_format = 'case2_%04d.png')
-settings.ffmpeg_movie_file_name = 'case2.mp4'
-settings.add_plane_surface (origin = (0.0, 0.0, 0.0),
-                            axis1 = (1.0, 0.0, 0.0),
-                            axis2 = (0.0, 0.0, 1.0),
-                            color = RGB_LIGHT_GREEN)
-
-vs = visualizer.Visualizer(DATA_FILE, settings)
-vs.output_snapshots(image_file_dir = './images')
-vs.make_movie(image_file_dir = './images', movie_file_dir = './')
-
-# Case 3: Focused Snapshot
-
-settings = visualizer.Settings({'camera_view_angle':5})
-settings.set_image(file_name_format = 'case3_%04d.png')
-settings.set_ffmpeg(movie_file_name = 'case3.mp4')
-
-vs = visualizer.Visualizer(DATA_FILE, settings)
-vs.output_movie(movie_file_dir = './')
-
-# Case 4: Filtered Particle Snapshot
-
-settings.set_image(file_name_format = 'case4_%04d.png')
-settings.set_ffmpeg(movie_file_name = 'case4.mp4')
-
-def user_pfilter_sid_func(display_species_id):
-    if(display_species_id == 1):
-        return {'color':RGB_YELLOW, 'name':'aaa'}
-    else:
-        return None
-
-def user_pfilter_sid_map_func(species_id): # return display_species_id
-    if(species_id == 1):
-        return 2
-    else:
-        return 1
-
-settings.pfilter_sid_func = user_pfilter_sid_func
-settings.pfilter_sid_map_func = user_pfilter_sid_map_func
-settings.set_dattrs(1, color = RGB_BLUE)
-
-vs = visualizer.Visualizer(glob.glob(DATA_FILES), settings)
-vs.output_movie(movie_file_dir = './')
+#vs = visualizer.Visualizer(DATA_FILE)
+#vs.output_movie('./')
+#
+## Case 2: Custom Particle Snapshot
+#
+#settings = visualizer.Settings()
+#settings.set_image(file_name_format = 'case2_%04d.png')
+#settings.ffmpeg_movie_file_name = 'case2.mp4'
+#settings.add_plane_surface (origin = (0.0, 0.0, 0.0),
+#                            axis1 = (1.0, 0.0, 0.0),
+#                            axis2 = (0.0, 0.0, 1.0),
+#                            color = RGB_LIGHT_GREEN)
+#
+#vs = visualizer.Visualizer(DATA_FILE, settings)
+#vs.output_snapshots(image_file_dir = './images')
+#vs.make_movie(image_file_dir = './images', movie_file_dir = './')
+#
+## Case 3: Focused Snapshot
+#
+#settings = visualizer.Settings({'camera_view_angle':5})
+#settings.set_image(file_name_format = 'case3_%04d.png')
+#settings.set_ffmpeg(movie_file_name = 'case3.mp4')
+#
+#vs = visualizer.Visualizer(DATA_FILE, settings)
+#vs.output_movie(movie_file_dir = './')
+#
+## Case 4: Filtered Particle Snapshot
+#
+#settings.set_image(file_name_format = 'case4_%04d.png')
+#settings.set_ffmpeg(movie_file_name = 'case4.mp4')
+#
+#def user_pfilter_sid_func(display_species_id):
+#    if(display_species_id == 1):
+#        return {'color':RGB_YELLOW, 'name':'aaa'}
+#    else:
+#        return None
+#
+#def user_pfilter_sid_map_func(species_id): # return display_species_id
+#    if(species_id == 1):
+#        return 2
+#    else:
+#        return 1
+#
+#settings.pfilter_sid_func = user_pfilter_sid_func
+#settings.pfilter_sid_map_func = user_pfilter_sid_map_func
+#settings.set_dattrs(1, color = RGB_BLUE)
+#
+#vs = visualizer.Visualizer(glob.glob(DATA_FILES), settings)
+#vs.output_movie(movie_file_dir = './')
 
 ### Blurry effect cases (Case 5-7)
 ### (New feature of revision 1)
@@ -75,15 +75,15 @@ vs = visualizer.Visualizer(DATA_FILE, settings)
 vs.output_snapshots(image_file_dir = './images')
 vs.make_movie(image_file_dir = './images', movie_file_dir = './')
 
-# Case 6: Accumulation mode to sum (opacity_scaling = 1.0)
-settings.set_fluorimetry(accumulation_mode = 1)
-settings.set_ffmpeg(movie_file_name = 'case6.mp4')
-vs.output_movie(movie_file_dir = './')
-
-# Case 7: Accumulation mode to sum (opacity_scaling = 0.5)
-settings.set_fluorimetry(brightness = 0.5)
-settings.set_ffmpeg(movie_file_name = 'case7.mp4')
-vs.output_movie(movie_file_dir = './')
+## Case 6: Accumulation mode to sum (opacity_scaling = 1.0)
+#settings.set_fluorimetry(accumulation_mode = 1)
+#settings.set_ffmpeg(movie_file_name = 'case6.mp4')
+#vs.output_movie(movie_file_dir = './')
+#
+## Case 7: Accumulation mode to sum (opacity_scaling = 0.5)
+#settings.set_fluorimetry(brightness = 0.5)
+#settings.set_ffmpeg(movie_file_name = 'case7.mp4')
+#vs.output_movie(movie_file_dir = './')
 
 print 'finished'
 
