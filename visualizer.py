@@ -302,11 +302,8 @@ class Visualizer(object):
             raise VisualizerError \
                 ('Illegal argument type for user_settings in constructor of Visualizer')
 
-        if type(HDF5_file_path_list) == type(''):
+        if isinstance(HDF5_file_path_list, str):
             HDF5_file_path_list = [HDF5_file_path_list]
-        elif type(HDF5_file_path_list) != type([]):
-            raise VisualizerError \
-                ('Illegal argument type for HDF5_file_path_list in constructor of Visualizer')
 
         self.__HDF5_file_path_list = HDF5_file_path_list
         self.__renderer = vtk.vtkRenderer()
