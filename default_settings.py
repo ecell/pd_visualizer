@@ -191,3 +191,4 @@ fluorimetry_shadow_display = False
 fluorimetry_accumulation_mode = 0 # 0:to max, 1:to sum
 fluorimetry_brightness = 1.0
 
+ignore_open_errors = False

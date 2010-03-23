@@ -915,20 +915,24 @@ class Visualizer(object):
         shells_time_sequence = []
 
         for HDF5_file_path in self.__HDF5_file_path_list:
+            try:
+                HDF5_file = h5py.File(HDF5_file_path, 'r')
+                data_group = HDF5_file['data']
 
-            HDF5_file = h5py.File(HDF5_file_path, 'r')
-            data_group = HDF5_file['data']
+                for time_group_name in data_group:
+                    time_group = data_group[time_group_name]
+                    time = time_group.attrs['t']
+                    elem = (time, HDF5_file_path, time_group_name)
+                    if 'particles' in time_group.keys():
+                        particles_time_sequence.append(elem)
+                    if 'shells' in time_group.keys():
+                        shells_time_sequence.append(elem)
 
-            for time_group_name in data_group:
-                time_group = data_group[time_group_name]
-                time = time_group.attrs['t']
-                elem = (time, HDF5_file_path, time_group_name)
-                if 'particles' in time_group.keys():
-                    particles_time_sequence.append(elem)
-                if 'shells' in time_group.keys():
-                    shells_time_sequence.append(elem)
-
-            HDF5_file.close()
+                HDF5_file.close()
+            except Exception, e:
+                if not self.__settings.ignore_open_errors:
+                    raise
+                print 'Ignoring error: ', e
 
         if len(particles_time_sequence) == 0:
             raise VisualizerError(
