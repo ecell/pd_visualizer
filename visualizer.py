@@ -931,9 +931,9 @@ class Visualizer(object):
             HDF5_file.close()
 
         if len(particles_time_sequence) == 0:
-            raise VisualizerError \
-                    ('Cannot find particles dataset in HDF5_file_path_list: ' \
-                      + self.__HDF5_file_path_list)
+            raise VisualizerError(
+                    'Cannot find particles dataset in HDF5_file_path_list: ' \
+                    + ', '.join(self.__HDF5_file_path_list))
 
         # Sort ascending time order
         particles_time_sequence.sort(lambda a, b:cmp(a[0], b[0]))
