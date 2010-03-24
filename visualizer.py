@@ -483,7 +483,7 @@ class Visualizer(object):
         self.__window.AddRenderer(self.__renderer)
         self.__window.SetSize(int(self.__settings.image_width),
                               int(self.__settings.image_height))
-        self.__window.SetOffScreenRenderingOn(self.__settings.offscreen_rendering)
+        self.__window.SetOffScreenRendering(self.__settings.offscreen_rendering)
 
         # Create a camera
 
