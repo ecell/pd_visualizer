@@ -964,11 +964,13 @@ class Visualizer(object):
             self.__reset_actors()
             self.__activate_environment(time)
 
-            if self.__settings.fluorimetry_display:
-                self.__create_blurry_particles(time_group['particles'])
-            else:
-                self.__create_particles(time_group['particles'])
+            if self.__settings.render_particles:
+                if self.__settings.fluorimetry_display:
+                    self.__create_blurry_particles(time_group['particles'])
+                else:
+                    self.__create_particles(time_group['particles'])
 
+            if self.__settings.render_shells:
                 for (shells_time,
                      shells_HDF5_file_name,
                      shells_time_group_name) in shells_time_sequence:

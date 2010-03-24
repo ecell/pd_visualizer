@@ -13,6 +13,8 @@ import domain_kind_constants
 #-----------------------------
 ignore_open_errors = False
 offscreen_rendering = False
+render_particles = True
+render_shells = True
 
 #-----------------------------
 # Output image settings
