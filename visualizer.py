@@ -483,9 +483,7 @@ class Visualizer(object):
         self.__window.AddRenderer(self.__renderer)
         self.__window.SetSize(int(self.__settings.image_width),
                               int(self.__settings.image_height))
-        self.__window.OffScreenRenderingOn() # This function doesn't work on linux,
-                                             # and that is why the black 
-                                             # render window appears.
+        self.__window.SetOffScreenRenderingOn(self.__settings.offscreen_rendering)
 
         # Create a camera
 

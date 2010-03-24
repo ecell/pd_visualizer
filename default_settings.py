@@ -9,6 +9,12 @@ import rgb_colors
 import domain_kind_constants
 
 #-----------------------------
+# General settings
+#-----------------------------
+ignore_open_errors = False
+offscreen_rendering = False
+
+#-----------------------------
 # Output image settings
 #-----------------------------
 image_height = 1000
@@ -190,5 +196,3 @@ fluorimetry_background_color = rgb_colors.RGB_BLACK
 fluorimetry_shadow_display = False
 fluorimetry_accumulation_mode = 0 # 0:to max, 1:to sum
 fluorimetry_brightness = 1.0
-
-ignore_open_errors = False
