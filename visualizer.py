@@ -59,17 +59,11 @@ class Settings(object):
 
     "Visualization setting class for Visualizer"
 
-    __slots__ = []
-    for x in dir(default_settings):
-        # Skip private variables in default_settings.py
-        if x[0] != '_': __slots__.append(x)
-
-
     def __init__(self, user_settings_dict = None):
 
         settings_dict = default_settings.__dict__.copy()
 
-        if user_settings_dict != None:
+        if user_settings_dict is not None:
             if type(user_settings_dict) != type({}):
                 print 'Illegal argument type for constructor of Settings class'
                 sys.exit()
@@ -83,11 +77,9 @@ class Settings(object):
                     copy_val = val
                 setattr(self, key, copy_val)
 
-
     def __set_data(self, key, val):
         if val != None:
             setattr(self, key, val)
-
 
     def set_image(self,
                   height = None,
@@ -101,7 +93,6 @@ class Settings(object):
         self.__set_data('image_background_color', background_color)
         self.__set_data('image_file_name_format', file_name_format)
 
-
     def set_ffmpeg(self,
                    movie_file_name = None,
                    bin_path = None,
@@ -110,7 +101,6 @@ class Settings(object):
         self.__set_data('ffmpeg_movie_file_name', movie_file_name)
         self.__set_data('ffmpeg_bin_path', bin_path)
         self.__set_data('ffmpeg_additional_options', additional_options)
-
 
     def set_camera(self,
                    forcal_point = None,
@@ -125,12 +115,10 @@ class Settings(object):
         self.__set_data('camera_elevation', elevation)
         self.__set_data('camera_view_angle', view_angle)
 
-
     def set_light(self,
                   intensity = None
                   ):
         self.__set_data('light_intensity', intensity)
-
 
     def set_species_legend(self,
                            display = None,
@@ -146,7 +134,6 @@ class Settings(object):
         self.__set_data('species_legend_height', height)
         self.__set_data('species_legend_width', width)
         self.__set_data('species_legend_offset', offset)
-
 
     def set_time_legend(self,
                         display = None,
@@ -165,12 +152,10 @@ class Settings(object):
         self.__set_data('time_legend_width', width)
         self.__set_data('time_legend_offset', offset)
 
-
     def set_wireframed_cube(self,
                             display = None
                             ):
         self.__set_data('wireframed_cube_diplay', display)
-
 
     def set_axis_annotation(self,
                             display = None,
@@ -179,59 +164,18 @@ class Settings(object):
         self.__set_data('axis_annotation_display', display)
         self.__set_data('axis_annotation_color', color)
 
-
     def set_fluorimetry(self,
                          display = None,
-                         wave_length = None,
-                         luminescence_color = None,
                          axial_voxel_number = None,
                          background_color = None,
                          shadow_display = None,
                          accumulation_mode = None,
-                         brightness = None
                          ):
         self.__set_data('fluorimetry_display', display)
-        self.__set_data('fluorimetry_wave_length', wave_length)
-        self.__set_data('fluorimetry_luminescence_color', luminescence_color)
         self.__set_data('fluorimetry_axial_voxel_number', axial_voxel_number)
         self.__set_data('fluorimetry_background_color', background_color)
         self.__set_data('fluorimetry_shadow_display', shadow_display)
         self.__set_data('fluorimetry_accumulation_mode', accumulation_mode)
-        self.__set_data('fluorimetry_brightness', brightness)
-
-
-    def set_pattrs(self,
-                   species_id,
-                   color = None,
-                   opacity = None,
-                   name = None,
-                   radius = None
-                   ):
-        if not self.user_pattrs.has_key(species_id):
-            self.user_pattrs[species_id] = {}
-
-        if color != None: self.user_pattrs[species_id]['color'] = color
-        if opacity != None: self.user_pattrs[species_id]['opacity'] = opacity
-        if name != None: self.user_pattrs[species_id]['name'] = name
-        if radius != None: self.user_pattrs[species_id]['radius'] = radius
-
-
-    def set_dattrs(self,
-                   domain_kind,
-                   color = None,
-                   opacity = None
-                   ):
-        if not domain_kind_constants.DOMAIN_KIND_NAME.has_key(domain_kind):
-            error = 'Illegal domain_kind is set on set_dattrs function:'
-            error += ' %d\n' % domain_kind
-            error += 'Please choose from 1:Single 2:Pair 3:Multi.'
-            raise VisualizerError(error)
-        elif not self.user_dattrs.has_key(domain_kind):
-            self.user_dattrs[domain_kind] = {}
-
-        if color != None: self.user_dattrs[domain_kind]['color'] = color
-        if opacity != None: self.user_dattrs[domain_kind]['opacity'] = opacity
-
 
     def add_plane_surface(self,
                          color = None,
@@ -259,19 +203,15 @@ class Settings(object):
                                         'axis1':axis1_,
                                         'axis2':axis2_})
 
-    def set_pfilter(self,
-                    pid_func = None,
-                    pos_func = None,
-                    sid_func = None,
-                    sid_map = None,
-                    sid_map_func = None,
-                    ):
-        self.__set_data('pfilter_pid_func', pid_func)
-        self.__set_data('pfilter_pos_func', pos_func)
-        self.__set_data('pfilter_sid_func', sid_func)
-        self.__set_data('pfilter_sid_map', sid_map)
-        self.__set_data('pfilter_sid_map_func', sid_map_func)
+    def pfilter_func(self, particle, display_species_id, pattr):
+        return pattr
 
+    def pfilter_sid_map_func(self, species_id):
+        return species_id
+
+    def pfilter_sid_to_pattr_func(self, display_species_id):
+        return self.particle_attrs.get(display_species_id,
+                                       self.default_particle_attr)
 
     def dump(self):
         dump_list = []
@@ -286,53 +226,48 @@ class Settings(object):
         print '<<<<<<<<<<<<<<<<<<<<<<<<'
 
 
+class Renderer(object):
+    def __init__(self, settings, species_dataset, world_size):
+        assert  isinstance(settings, Settings)
+        self.__settings = settings
+        self.__world_size = world_size
 
-class Visualizer(object):
+        self.__build_particle_attrs(species_dataset)
+        self.__build_domain_attrs()
+        self.renderer = self.__create_renderer()
 
-    "Visualization class of e-cell simulator"
+        self.__axes = None
+        self.__cube = None
+        self.__species_legend = None
+        self.__time_legend = None
+        self.__plane_list = self.__create_planes()
 
-    def __init__(self,
-                  HDF5_file_path_list,
-                  user_settings = Settings()
-                  ):
+        # Create axis annotation
+        if self.__settings.axis_annotation_display:
+            self.__axes = self.__create_axes()
+            self.__axes.SetCamera(self.renderer.GetActiveCamera())
 
-        if isinstance(user_settings, Settings):
-            self.__settings = user_settings
-        else:
-            raise VisualizerError \
-                ('Illegal argument type for user_settings in constructor of Visualizer')
+        # Create a wireframed cube
+        if self.__settings.wireframed_cube_display:
+            self.__cube = self.__create_wireframe_cube()
 
-        if isinstance(HDF5_file_path_list, str):
-            HDF5_file_path_list = [HDF5_file_path_list]
+        # Create species legend box
+        if self.__settings.species_legend_display:
+            self.__species_legend = self.__create_species_legend()
 
-        self.__HDF5_file_path_list = HDF5_file_path_list
-        self.__renderer = vtk.vtkRenderer()
-        self.__window = vtk.vtkRenderWindow()
-        self.__axes = vtk.vtkCubeAxesActor2D()
-        self.__cube = vtk.vtkActor()
-        self.__species_legend = vtk.vtkLegendBoxActor()
-        self.__time_legend = vtk.vtkLegendBoxActor()
-
-        self.__plane_list = []
-        for dummy in self.__settings.plane_surface_list:
-            self.__plane_list.append(vtk.vtkActor())
-
+        # Create time legend box
+        if self.__settings.time_legend_display:
+            self.__time_legend = self.__create_time_legend()
 
     def __get_domain_color(self, domain_kind):
         return self.__dattrs.get \
-                (domain_kind, self.__settings.undefined_dattrs)['color']
-
+                (domain_kind, self.__settings.default_domain_attr)['color']
 
     def __get_domain_opacity(self, domain_kind):
         return self.__dattrs.get \
-                (domain_kind, self.__settings.undefined_dattrs)['opacity']
+                (domain_kind, self.__settings.default_domain_attr)['opacity']
 
-
-    def __get_legend_position(self,
-                                 location,
-                                 height,
-                                 width,
-                                 offset):
+    def __get_legend_position(self, location, height, width, offset):
         if location == 0:
             return (offset, offset)
         elif location == 1:
@@ -344,280 +279,10 @@ class Visualizer(object):
         else:
             raise VisualizerError('Illegal legend position: %d' % location)
 
-
-    def __create_particle_attrs(self, species_dataset):
-
-        # Data transfer of species dataset to the dictionary
-
-        species_array = numpy.zeros(shape = species_dataset.shape,
-                                    dtype = species_dataset.dtype)
-
-        species_dataset.read_direct(species_array)
-        species_dict = {}
-        for x in species_array:
-            species_id = x['id']
-            species_dict[species_id] = {
-                                        'name':x['name'],
-                                        'radius':x['radius'],
-                                        'D':x['D']
-                                        }
-
-        # Set species_id map
-
-        if self.__settings.pfilter_sid_map_func:
-            # Construct user map from function
-            self.__species_idmap = {}
-            for species_id in species_dict.keys():
-                display_species_id = self.__settings.pfilter_sid_map_func(species_id)
-                if(type(display_species_id) != type(0) and
-                   type(display_species_id) != type(0L)):
-                    error_info = 'Imperfect pfilter_sid_map_func\n'
-                    error_info += 'Cannot find key of species_id in the map:'
-                    error_info += ' species_id = %d' % species_id
-                    raise VisualizerError(error_info)
-                else:
-                    self.__species_idmap[species_id] = display_species_id
-
-        elif self.__settings.pfilter_sid_map:
-            # Set user map
-            self.__species_idmap = self.__settings.pfilter_sid_map
-            # Check the user map
-            for species_id in species_dict.keys():
-                if not self.__species_idmap.has_key(species_id):
-                    error_info = 'Imperfect pfilter_sid_map\n'
-                    error_info += 'Cannot find key of species_id in the map:'
-                    error_info += ' species_id = %d' % species_id
-                    raise VisualizerError(error_info)
-
-        else:
-            # Set default map
-            self.__species_idmap = {}
-            for species_id in species_dict.keys():
-                self.__species_idmap[species_id] = species_id
-
-        # Delete duplicated numbers by set constructor
-
-        tmplist = self.__species_idmap.values()
-        tmplist.sort()
-        self.__mapped_species_idset = set(tmplist)
-
-        # Set particle attributes
-
-        self.__pattrs = {}
-        nondisplay_species_idset = set([])
-
-        for species_id in self.__mapped_species_idset:
-
-            # Get default name and radius from HDF5 data
-            name = species_dict[species_id]['name']
-            radius = species_dict[species_id]['radius']
-            D = species_dict[species_id]['D']
-
-            # Get default color and opacity from default_settings
-            if self.__settings.default_pattrs.has_key(species_id):
-                def_pattr = self.__settings.default_pattrs[species_id]
-            else:
-                def_pattr = self.__settings.undefined_pattrs
-
-            color = def_pattr['color']
-            opacity = def_pattr['opacity']
-
-            # Replace attributes by user attributes
-            if self.__settings.user_pattrs.has_key(species_id):
-                user_pattr = self.__settings.user_pattrs[species_id]
-                name = user_pattr.get('name', name)
-                color = user_pattr.get('color', color)
-                opacity = user_pattr.get('opacity', opacity)
-                radius = user_pattr.get('radius', radius)
-
-            # Replace attributes by filter function
-            if self.__settings.pfilter_sid_func:
-                pattr = self.__settings.pfilter_sid_func(species_id)
-                if pattr == None:
-                    opacity = 0.0
-                    nondisplay_species_idset.add(species_id)
-                else:
-                    name = pattr.get('name', name)
-                    color = pattr.get('color', color)
-                    opacity = pattr.get('opacity', opacity)
-                    radius = pattr.get('radius', radius)
-
-            self.__pattrs[species_id] = {
-                                         'color':color,
-                                         'opacity':opacity,
-                                         'radius':radius,
-                                         'name':name,
-                                         'D':D
-                                         }
-
-        # Redefine for legend of particle species
-        self.__mapped_species_idset = \
-        self.__mapped_species_idset.difference(nondisplay_species_idset)
-        self.__num_particle_legend = len(self.__mapped_species_idset)
-
-
-    def __create_domain_attrs(self):
-
-        self.__dattrs = self.__settings.default_dattrs
-        user_dattrs = self.__settings.user_dattrs
-
-        for domain_kind in self.__dattrs.iterkeys():
-            if user_dattrs.has_key(domain_kind):
-                self.__dattrs[domain_kind].update(user_dattrs[domain_kind])
-
-
-    def __create_environment(self, species_dataset, world_size):
-
-        self.__world_size = world_size
-        self.__create_particle_attrs(species_dataset)
-        self.__create_domain_attrs()
-
-        # Create vtk renderer
-
-        self.__renderer.SetBackground(self.__settings.image_background_color)
-        self.__renderer.SetViewport(0.0, 0.0, 1.0, 1.0)
-
-        # Create a render window
-
-        self.__window = vtk.vtkRenderWindow()
-        self.__window.AddRenderer(self.__renderer)
-        self.__window.SetSize(int(self.__settings.image_width),
-                              int(self.__settings.image_height))
-        self.__window.SetOffScreenRendering(self.__settings.offscreen_rendering)
-
-        # Create a camera
-
-        camera = vtk.vtkCamera()
-
-        camera.SetFocalPoint(self.__settings.camera_focal_point)
-        camera.SetPosition(self.__settings.camera_base_position)
-
-        camera.Azimuth(self.__settings.camera_azimuth)
-        camera.Elevation(self.__settings.camera_elevation)
-        camera.SetViewAngle(self.__settings.camera_view_angle)
-        self.__renderer.SetActiveCamera(camera)
-
-        # Create a automatic light kit
-
-        light_kit = vtk.vtkLightKit()
-        light_kit.SetKeyLightIntensity(self.__settings.light_intensity)
-        light_kit.AddLightsToRenderer(self.__renderer)
-
-        # Create axis annotation
-
-        if self.__settings.axis_annotation_display:
-            tprop = vtk.vtkTextProperty()
-            tprop.SetColor(self.__settings.axis_annotation_color)
-            tprop.ShadowOn()
-
-            self.__axes.SetBounds(0.0, 1.0, 0.0, 1.0, 0.0, 1.0)
-            self.__axes.SetRanges(0.0, self.__world_size,
-                                  0.0, self.__world_size,
-                                  0.0, self.__world_size)
-            self.__axes.SetCamera(self.__renderer.GetActiveCamera())
-            self.__axes.SetLabelFormat('%g')
-            self.__axes.SetFontFactor(1.5)
-            self.__axes.SetAxisTitleTextProperty(tprop)
-            self.__axes.SetAxisLabelTextProperty(tprop)
-            self.__axes.UseRangesOn()
-            self.__axes.SetCornerOffset(0.0)
-
-        # Create a wireframed cube
-
-        if self.__settings.wireframed_cube_display:
-            cube = vtk.vtkCubeSource()
-            cube.SetBounds(0.0, 1.0, 0.0, 1.0, 0.0, 1.0)
-            cube.SetCenter(0.5, 0.5, 0.5)
-
-            mapper = vtk.vtkPolyDataMapper()
-            mapper.SetInputConnection(cube.GetOutputPort())
-
-            self.__cube.SetMapper(mapper)
-            self.__cube.GetProperty().SetRepresentationToWireframe()
-
-        # Create species legend box
-
-        if self.__settings.species_legend_display:
-
-            # Get number of lines
-            legend_line_numbers = self.__num_particle_legend \
-                                + len(domain_kind_constants.DOMAIN_KIND_NAME)
-
-            # Create legend actor
-            self.__species_legend.SetNumberOfEntries(legend_line_numbers)
-            self.__species_legend.SetPosition \
-                (self.__get_legend_position(self.__settings.species_legend_location,
-                                            self.__settings.species_legend_height,
-                                            self.__settings.species_legend_width,
-                                            self.__settings.species_legend_offset))
-            self.__species_legend.SetWidth(self.__settings.species_legend_width)
-            self.__species_legend.SetHeight(self.__settings.species_legend_height)
-
-            tprop = vtk.vtkTextProperty()
-            tprop.SetColor(rgb_colors.RGB_WHITE)
-            tprop.SetVerticalJustificationToCentered()
-
-            self.__species_legend.SetEntryTextProperty(tprop)
-
-            if self.__settings.species_legend_border_display:
-                self.__species_legend.BorderOn()
-            else:
-                self.__species_legend.BorderOff()
-
-            # Entry legend string to the actor
-            sphere = vtk.vtkSphereSource()
-
-            # Create legends of particle speices
-            count = 0
-            for species_id in self.__mapped_species_idset:
-                self.__species_legend.SetEntryColor \
-                    (count, self.__pattrs[species_id]['color'])
-                self.__species_legend.SetEntryString \
-                    (count, self.__pattrs[species_id]['name'])
-                self.__species_legend.SetEntrySymbol(count, sphere.GetOutput())
-                count += 1
-
-            # Create legends of shell spesies
-            offset = count
-            count = 0
-            for kind, name in domain_kind_constants.DOMAIN_KIND_NAME.items():
-                self.__species_legend.SetEntryColor \
-                    (offset + count, self.__get_domain_color(kind))
-                self.__species_legend.SetEntrySymbol \
-                    (offset + count, sphere.GetOutput())
-                self.__species_legend.SetEntryString(offset + count, name)
-                count += 1
-
-        # Create time legend box
-
-        if self.__settings.time_legend_display:
-
-            # Create legend actor
-            self.__time_legend.SetNumberOfEntries(1)
-            self.__time_legend.SetPosition \
-                (self.__get_legend_position(self.__settings.time_legend_location,
-                                            self.__settings.time_legend_height,
-                                            self.__settings.time_legend_width,
-                                            self.__settings.time_legend_offset))
-
-            self.__time_legend.SetWidth(self.__settings.time_legend_width)
-            self.__time_legend.SetHeight(self.__settings.time_legend_height)
-
-            tprop = vtk.vtkTextProperty()
-            tprop.SetColor(rgb_colors.RGB_WHITE)
-            tprop.SetVerticalJustificationToCentered()
-            self.__time_legend.SetEntryTextProperty(tprop)
-
-            if self.__settings.time_legend_border_display:
-                self.__time_legend.BorderOn()
-            else:
-                self.__time_legend.BorderOff()
-
-        # Create planes
-
-        count = 0
+    def __create_planes(self):
+        plane_list = []
         for x in self.__settings.plane_surface_list:
-
+            actor = vtk.vtkActor()
             plane = vtk.vtkPlaneSource()
             plane.SetOrigin(x['origin'])
             plane.SetPoint1(x['axis1'])
@@ -626,18 +291,182 @@ class Visualizer(object):
             mapper = vtk.vtkPolyDataMapper()
             mapper.SetInput(plane.GetOutput())
 
-            self.__plane_list[count].SetMapper(mapper)
-            self.__plane_list[count].GetProperty().SetColor(x['color'])
-            self.__plane_list[count].GetProperty().SetOpacity(x['opacity'])
+            actor.SetMapper(mapper)
+            prop = actor.GetProperty()
+            prop.SetColor(x['color'])
+            prop.SetOpacity(x['opacity'])
+            plane_list.append(actor)
+
+        return plane_list
+
+    def __build_particle_attrs(self, species_dataset):
+        # Data transfer of species dataset to the dictionary
+        species_dict = {}
+        species_idmap = {}
+        id_idx = species_dataset.dtype.names.index('id')
+        for x in species_dataset:
+            species_id = x[id_idx]
+            display_species_id = self.__settings.pfilter_sid_map_func(species_id)
+            if display_species_id is not None:
+                species_idmap[species_id] = display_species_id
+                species_dict[species_id] = dict((species_dataset.dtype.names[i], v) for i, v in enumerate(x))
+
+        # Delete duplicated numbers by set constructor
+        self.__species_idmap = species_idmap
+        self.__reverse_species_idmap = dict((v, k) for k, v in species_idmap.iteritems())
+
+        # Set particle attributes
+        self.__pattrs = {}
+        nondisplay_species_idset = set()
+
+        for species_id, display_species_id in self.__reverse_species_idmap.iteritems():
+            # Get default color and opacity from default_settings
+            _def_attr = self.__settings.pfilter_sid_to_pattr_func(display_species_id)
+            if _def_attr is not None:
+                def_attr = dict(_def_attr)
+                def_attr.update(species_dict[species_id])
+                self.__pattrs[display_species_id] = def_attr
+
+        self.__mapped_species_idset = self.__pattrs.keys()
+
+    def __build_domain_attrs(self):
+        self.__dattrs = self.__settings.domain_attrs
+
+    def __create_camera(self):
+        # Create a camera
+        camera = vtk.vtkCamera()
+
+        camera.SetFocalPoint(self.__settings.camera_focal_point)
+        camera.SetPosition(self.__settings.camera_base_position)
+
+        camera.Azimuth(self.__settings.camera_azimuth)
+        camera.Elevation(self.__settings.camera_elevation)
+        camera.SetViewAngle(self.__settings.camera_view_angle)
+        return camera
+
+    def __add_lights_to_renderer(self, renderer):
+        # Create a automatic light kit
+        light_kit = vtk.vtkLightKit()
+        light_kit.SetKeyLightIntensity(self.__settings.light_intensity)
+        light_kit.AddLightsToRenderer(renderer)
+
+    def __create_renderer(self):
+        renderer = vtk.vtkRenderer()
+        renderer.SetViewport(0.0, 0.0, 1.0, 1.0)
+        renderer.SetActiveCamera(self.__create_camera())
+        renderer.SetBackground(self.__settings.image_background_color)
+        self.__add_lights_to_renderer(renderer)
+        return renderer
+
+    def __create_axes(self):
+        axes = vtk.vtkCubeAxesActor2D()
+        axes.SetBounds(0.0, 1.0, 0.0, 1.0, 0.0, 1.0)
+        axes.SetRanges(0.0, self.__world_size,
+                              0.0, self.__world_size,
+                              0.0, self.__world_size)
+        axes.SetLabelFormat('%g')
+        axes.SetFontFactor(1.5)
+        tprop = vtk.vtkTextProperty()
+        tprop.SetColor(self.__settings.axis_annotation_color)
+        tprop.ShadowOn()
+        axes.SetAxisTitleTextProperty(tprop)
+        axes.SetAxisLabelTextProperty(tprop)
+        axes.UseRangesOn()
+        axes.SetCornerOffset(0.0)
+
+        return axes
+
+    def __create_wireframe_cube(self):
+        cube = vtk.vtkCubeSource()
+        cube.SetBounds(0.0, 1.0, 0.0, 1.0, 0.0, 1.0)
+        cube.SetCenter(0.5, 0.5, 0.5)
+
+        mapper = vtk.vtkPolyDataMapper()
+        mapper.SetInputConnection(cube.GetOutputPort())
+
+        actor = vtk.vtkActor()
+        actor.SetMapper(mapper)
+        actor.GetProperty().SetRepresentationToWireframe()
+        return actor
+
+    def __create_time_legend(self):
+        time_legend = vtk.vtkLegendBoxActor()
+
+        # Create legend actor
+        time_legend.SetNumberOfEntries(1)
+        time_legend.SetPosition \
+            (self.__get_legend_position(self.__settings.time_legend_location,
+                                        self.__settings.time_legend_height,
+                                        self.__settings.time_legend_width,
+                                        self.__settings.time_legend_offset))
+
+        time_legend.SetWidth(self.__settings.time_legend_width)
+        time_legend.SetHeight(self.__settings.time_legend_height)
+
+        tprop = vtk.vtkTextProperty()
+        tprop.SetColor(rgb_colors.RGB_WHITE)
+        tprop.SetVerticalJustificationToCentered()
+        time_legend.SetEntryTextProperty(tprop)
+
+        if self.__settings.time_legend_border_display:
+            time_legend.BorderOn()
+        else:
+            time_legend.BorderOff()
+        return time_legend
+
+    def __create_species_legend(self):
+        species_legend = vtk.vtkLegendBoxActor()
+        # Get number of lines
+        legend_line_numbers = len(self.__mapped_species_idset) \
+                            + len(domain_kind_constants.DOMAIN_KIND_NAME)
+
+        # Create legend actor
+        species_legend.SetNumberOfEntries(legend_line_numbers)
+        species_legend.SetPosition \
+            (self.__get_legend_position(self.__settings.species_legend_location,
+                                        self.__settings.species_legend_height,
+                                        self.__settings.species_legend_width,
+                                        self.__settings.species_legend_offset))
+        species_legend.SetWidth(self.__settings.species_legend_width)
+        species_legend.SetHeight(self.__settings.species_legend_height)
+
+        tprop = vtk.vtkTextProperty()
+        tprop.SetColor(rgb_colors.RGB_WHITE)
+        tprop.SetVerticalJustificationToCentered()
+
+        species_legend.SetEntryTextProperty(tprop)
+
+        if self.__settings.species_legend_border_display:
+            species_legend.BorderOn()
+        else:
+            species_legend.BorderOff()
+
+        # Entry legend string to the actor
+        sphere = vtk.vtkSphereSource()
+
+        # Create legends of particle speices
+        count = 0
+        for species_id in self.__mapped_species_idset:
+            species_legend.SetEntryColor \
+                (count, self.__pattrs[species_id]['color'])
+            species_legend.SetEntryString \
+                (count, self.__pattrs[species_id]['name'])
+            species_legend.SetEntrySymbol(count, sphere.GetOutput())
             count += 1
 
+        # Create legends of shell spesies
+        offset = count
+        count = 0
+        for kind, name in domain_kind_constants.DOMAIN_KIND_NAME.items():
+            species_legend.SetEntryColor \
+                (offset + count, self.__get_domain_color(kind))
+            species_legend.SetEntrySymbol \
+                (offset + count, sphere.GetOutput())
+            species_legend.SetEntryString(offset + count, name)
+            count += 1
+        return species_legend
 
-    def __reset_actors(self):
-        self.__renderer.RemoveAllViewProps()
-
-
-    def __create_particles(self, particles_dataset):
-
+    def __render_particles(self, particles_dataset):
         # Data transfer from HDF5 dataset to numpy array for fast access
         particles_array = numpy.zeros(shape = particles_dataset.shape,
                                       dtype = particles_dataset.dtype)
@@ -645,28 +474,17 @@ class Visualizer(object):
         particles_dataset.read_direct(particles_array)
 
         for x in particles_array:
-
-            particle_id = x['id']
-            position = x['position']
-            species_id = x['species_id']
-            species_id = self.__species_idmap[species_id]
-
-            if self.__settings.pfilter_pos_func:
-                pos_filter_flag = self.__settings.pfilter_pos_func(position)
-            else:
-                pos_filter_flag = True
-
-            if self.__settings.pfilter_pid_func:
-                pid_filter_flag = self.__settings.pfilter_pid_func(particle_id)
-            else:
-                pid_filter_flag = True
-
-            if(pos_filter_flag and
-               pid_filter_flag and
-               self.__pattrs[species_id]['opacity'] > 0.0):
-
+            display_species_id = self.__species_idmap.get(x['species_id'])
+            if display_species_id is None:
+                continue
+            pattr = self.__pattrs.get(display_species_id)
+            if pattr is None:
+                continue
+            pattr = self.__settings.pfilter_func(x, display_species_id, pattr)
+            if pattr is not None:
                 sphere = vtk.vtkSphereSource()
-                sphere.SetRadius(self.__pattrs[species_id]['radius'] / self.__world_size)
+                sphere.SetRadius(pattr['radius'] / self.__world_size)
+                position = x['position']
                 sphere.SetCenter(position[0] / self.__world_size,
                                  position[1] / self.__world_size,
                                  position[2] / self.__world_size)
@@ -676,101 +494,86 @@ class Visualizer(object):
 
                 sphere_actor = vtk.vtkActor()
                 sphere_actor.SetMapper(mapper)
-                sphere_actor.GetProperty().SetColor \
-                    (self.__pattrs[species_id]['color'])
-                sphere_actor.GetProperty().SetOpacity \
-                    (self.__pattrs[species_id]['opacity'])
+                sphere_actor.GetProperty().SetColor(pattr['color'])
+                sphere_actor.GetProperty().SetOpacity(pattr['opacity'])
 
-                self.__renderer.AddActor(sphere_actor)
+                self.renderer.AddActor(sphere_actor)
 
+    def __render_blurry_particles(self, particles_dataset):
+        particles_per_species = dict((k, vtk.vtkPoints()) for k in self.__species_idmap.iterkeys())
 
-    def __create_blurry_particles(self, particles_dataset):
-
-        # Data transfer from HDF5 dataset to numpy array for fast access
-        particles_array = numpy.zeros(shape = particles_dataset.shape,
-                                      dtype = particles_dataset.dtype)
-
-        particles_dataset.read_direct(particles_array)
-
-        self.__renderer.SetBackground(self.__settings.fluorimetry_background_color)
+        position_idx = particles_dataset.dtype.names.index('position')
+        species_id_idx = particles_dataset.dtype.names.index('species_id')
+        for p in particles_dataset:
+            pos = p[position_idx]
+            display_species_id = self.__species_idmap.get(p[species_id_idx])
+            if display_species_id is None:
+                continue
+            particles_per_species[display_species_id].InsertNextPoint(
+                pos / self.__world_size)
 
         nx = ny = nz = self.__settings.fluorimetry_axial_voxel_number
 
-        # Add points of particle
-        points = vtk.vtkPoints()
-        for x in particles_array:
-            pos = x['position']
-            points.InsertNextPoint(pos[0] / self.__world_size,
-                                   pos[1] / self.__world_size,
-                                   pos[2] / self.__world_size)
+        for display_species_id, points in particles_per_species.iteritems():
+            poly_data = vtk.vtkPolyData()
+            poly_data.SetPoints(points)
+            poly_data.ComputeBounds()
 
-        poly_data = vtk.vtkPolyData()
-        poly_data.SetPoints(points)
-        poly_data.ComputeBounds()
+            pattr = self.__pattrs[display_species_id]
+            # Calc standard deviation of gauss distribution function
+            wave_length = pattr['fluorimetry_wave_length']
+            sigma = 0.5 * wave_length / self.__world_size
 
-        # Calc standard deviation of gauss distribution function
-        wave_length = self.__settings.fluorimetry_wave_length
-        sigma = 0.5 * wave_length / self.__world_size
-
-        # Create guassian splatter
-        gs = vtk.vtkGaussianSplatter()
-        gs.SetInput(poly_data)
-        gs.SetSampleDimensions(nx, ny, nz)
-        gs.SetRadius(sigma)
-        gs.SetExponentFactor(-0.5)
-        gs.ScalarWarpingOff()
-        gs.SetModelBounds(-sigma, 1.0 + sigma,
-                          - sigma, 1.0 + sigma,
-                          - sigma, 1.0 + sigma)
-
-        if self.__settings.fluorimetry_accumulation_mode == 0:
+            # Create guassian splatter
+            gs = vtk.vtkGaussianSplatter()
+            gs.SetInput(poly_data)
+            gs.SetSampleDimensions(nx, ny, nz)
+            gs.SetRadius(sigma)
+            gs.SetExponentFactor(-.5)
+            gs.ScalarWarpingOff()
+            gs.SetModelBounds(-sigma, 1. + sigma,
+                              -sigma, 1. + sigma,
+                              -sigma, 1. + sigma)
             gs.SetAccumulationModeToMax()
-        elif self.__settings.fluorimetry_accumulation_mode == 1:
-            gs.SetAccumulationModeToSum()
-        else:
-            raise VisualizerError('Illegal fluorimetry_accumulation_mode')
 
-        # Create filter for volume rendering
-        filter = vtk.vtkImageShiftScale()
-        # Scales to unsigned char
-        filter.SetScale(255.0 * self.__settings.fluorimetry_brightness)
-        filter.ClampOverflowOn()
-        filter.SetOutputScalarTypeToUnsignedChar()
-        filter.SetInputConnection(gs.GetOutputPort())
+            # Create filter for volume rendering
+            filter = vtk.vtkImageShiftScale()
+            # Scales to unsigned char
+            filter.SetScale(255. * pattr['fluorimetry_brightness'])
+            filter.ClampOverflowOn()
+            filter.SetOutputScalarTypeToUnsignedChar()
+            filter.SetInputConnection(gs.GetOutputPort())
 
-        # Create volume property
-        opacity_tfunc = vtk.vtkPiecewiseFunction()
-        opacity_tfunc.AddPoint(0, 0.0)
-        opacity_tfunc.AddPoint(255, 1.0)
+            #mapper = vtk.vtkFixedPointVolumeRayCastMapper()
+            #mapper = vtk.vtkVolumeTextureMapper3D()
+            mapper = vtk.vtkVolumeTextureMapper2D()
+            mapper.SetInputConnection(filter.GetOutputPort())
 
-        color = self.__settings.fluorimetry_luminescence_color
-        color_tfunc = vtk.vtkColorTransferFunction()
-        color_tfunc.AddRGBPoint(0, color[0], color[1], color[2])
+            volume = vtk.vtkVolume()
+            property = volume.GetProperty() # vtk.vtkVolumeProperty()
+            color = pattr['fluorimetry_luminescence_color']
+            color_tfunc = vtk.vtkColorTransferFunction()
+            color_tfunc.AddRGBPoint(0, color[0], color[1], color[2])
+            property.SetColor(color_tfunc)
+            opacity_tfunc = vtk.vtkPiecewiseFunction()
+            opacity_tfunc.AddPoint(0, 0.0)
+            opacity_tfunc.AddPoint(255., 1.0)
+            property.SetScalarOpacity(opacity_tfunc)
+            property.SetInterpolationTypeToLinear()
 
-        property = vtk.vtkVolumeProperty()
-        property.SetColor(color_tfunc)
-        property.SetScalarOpacity(opacity_tfunc)
-        property.SetInterpolationTypeToLinear()
+            if self.__settings.fluorimetry_shadow_display:
+                property.ShadeOn()
+            else:
+                property.ShadeOff()
 
-        if self.__settings.fluorimetry_shadow_display:
-            property.ShadeOn()
-        else:
-            property.ShadeOff()
+            volume.SetMapper(mapper)
 
-        mapper = vtk.vtkVolumeTextureMapper2D()
-        mapper.SetInputConnection(filter.GetOutputPort())
+            self.renderer.AddVolume(volume)
 
-        volume = vtk.vtkVolume()
-        volume.SetMapper(mapper)
-        volume.SetProperty(property)
-
-        self.__renderer.AddVolume(volume)
-
-
-    def __create_shells(self,
-                          shells_dataset,
-                          domain_shell_assoc,
-                          domains_dataset):
+    def __render_shells(self,
+                        shells_dataset,
+                        domain_shell_assoc,
+                        domains_dataset):
 
         # Data transfer from HDF5 dataset to numpy array for fast access
         shells_array = numpy.zeros(shape = shells_dataset.shape,
@@ -828,32 +631,61 @@ class Visualizer(object):
                 sphere_actor.GetProperty().SetOpacity \
                     (self.__get_domain_opacity(domain_kind))
 
-                self.__renderer.AddActor(sphere_actor)
+                self.renderer.AddActor(sphere_actor)
+
+    def __reset_actors(self):
+        self.renderer.RemoveAllViewProps()
+
+        if self.__axes is not None:
+            self.renderer.AddViewProp(self.__axes)
+
+        if self.__cube is not None:
+            self.renderer.AddActor(self.__cube)
+
+        if self.__species_legend is not None:
+            self.renderer.AddActor(self.__species_legend)
+
+        if self.__time_legend is not None:
+            self.renderer.AddActor(self.__time_legend)
+
+        for plane in self.__plane_list:
+            self.renderer.AddActor(plane)
+
+    def render(self, t, particles_dataset, shells=None):
+        self.__reset_actors()
+        if self.__time_legend is not None:
+            self.__time_legend.SetEntryString(0,
+                self.__settings.time_legend_format % t)
+
+        if self.__settings.fluorimetry_display:
+            self.__render_blurry_particles(particles_dataset)
+        else:
+            if self.__settings.render_particles:
+                self.__render_particles(particles_dataset)
+
+            if self.__settings.render_shells and shells is not None:
+                self.__render_shells(**shells)
 
 
-    def __activate_environment(self, time):
+class Visualizer(object):
+    "Visualization class of e-cell simulator"
 
-        if self.__settings.axis_annotation_display:
-            self.__renderer.AddViewProp(self.__axes)
+    def __init__(self, settings = Settings()):
+        assert isinstance(settings, Settings)
+        self.__settings = settings
 
-        if self.__settings.wireframed_cube_display:
-            self.__renderer.AddActor(self.__cube)
+        self.__renderer = None
+        self.__window = None
 
-        if self.__settings.time_legend_display:
-            self.__time_legend.SetEntryString \
-                (0, self.__settings.time_legend_format % time)
-            self.__renderer.AddActor(self.__time_legend)
+    def __create_render_window(self):
+        # Create a render window
+        window = vtk.vtkRenderWindow()
+        window.SetSize(int(self.__settings.image_width),
+                       int(self.__settings.image_height))
+        window.SetOffScreenRendering(self.__settings.offscreen_rendering)
+        return window
 
-        if(self.__settings.species_legend_display and \
-           not self.__settings.fluorimetry_display) :
-            self.__renderer.AddActor(self.__species_legend)
-
-        for x in self.__plane_list:
-            self.__renderer.AddActor(x)
-
-
-    def __output_snapshot(self, image_file_name):
-
+    def save_rendered(self, image_file_name):
         "Output snapshot to image file"
 
         image_file_type = os.path.splitext(image_file_name)[1]
@@ -865,9 +697,6 @@ class Visualizer(object):
             else:
                 raise VisualizerError \
                     ('Cannot overwrite image file: ' + image_file_name)
-
-        w2i = vtk.vtkWindowToImageFilter()
-        w2i.SetInput(self.__window)
 
         if image_file_type == '.bmp':
             writer = vtk.vtkBMPWriter()
@@ -882,25 +711,29 @@ class Visualizer(object):
             error_info += 'Please choose from "bmp","jpg","png","tif".'
             raise VisualizerError(error_info)
 
+        w2i = vtk.vtkWindowToImageFilter()
+        w2i.SetInput(self.__window)
+        self.__window.Render()
+
         writer.SetInput(w2i.GetOutput())
         writer.SetFileName(image_file_name)
         writer.Write()
 
-
-    def output_snapshots(self, image_file_dir):
-
+    def output_snapshots(self, HDF5_file_path_list, image_file_dir):
         "Output snapshots from HDF5 dataset"
+
+        self.__HDF5_file_path_list = HDF5_file_path_list
 
         # Create image file folder
         if not os.path.exists(image_file_dir):
             os.makedirs(image_file_dir)
 
         # Check empty path list
-        if len(self.__HDF5_file_path_list) == 0:
+        if len(HDF5_file_path_list) == 0:
             raise VisualizerError('Empty HDF5_file_path_list.\n Please set it.')
 
         # Check accessable to the path list
-        for path in self.__HDF5_file_path_list:
+        for path in HDF5_file_path_list:
             if(not os.path.exists(path) or
                not os.path.isfile(path) or
                not os.access(path, os.R_OK)):
@@ -912,7 +745,7 @@ class Visualizer(object):
         particles_time_sequence = []
         shells_time_sequence = []
 
-        for HDF5_file_path in self.__HDF5_file_path_list:
+        for HDF5_file_path in HDF5_file_path_list:
             try:
                 HDF5_file = h5py.File(HDF5_file_path, 'r')
                 data_group = HDF5_file['data']
@@ -935,7 +768,7 @@ class Visualizer(object):
         if len(particles_time_sequence) == 0:
             raise VisualizerError(
                     'Cannot find particles dataset in HDF5_file_path_list: ' \
-                    + ', '.join(self.__HDF5_file_path_list))
+                    + ', '.join(HDF5_file_path_list))
 
         # Sort ascending time order
         particles_time_sequence.sort(lambda a, b:cmp(a[0], b[0]))
@@ -947,8 +780,7 @@ class Visualizer(object):
         time_count = 0
         snapshot_file_list = []
 
-        for (time, HDF5_file_name, time_group_name) in particles_time_sequence:
-
+        for time, HDF5_file_name, time_group_name in particles_time_sequence:
             HDF5_file = h5py.File(HDF5_file_name, 'r')
 
             data_group = HDF5_file['data']
@@ -957,65 +789,50 @@ class Visualizer(object):
             world_size = data_group.attrs['world_size']
             time_group = data_group[time_group_name]
 
-            # Create environment at first time
-            if time_count == 0:
-                self.__create_environment(species_dataset, world_size)
+            if self.__renderer is None:
+                self.__renderer = Renderer(self.__settings, species_dataset, world_size)
+                self.__window = self.__create_render_window()
+                self.__window.AddRenderer(self.__renderer.renderer)
 
-            self.__reset_actors()
-            self.__activate_environment(time)
+            shells_HDF5_file = None
+            for shells_time, shells_HDF5_file_name, shells_time_group_name \
+                in shells_time_sequence:
+                if time >= shells_time: # Backward time search
+                    if os.path.samefile(shells_HDF5_file_name, HDF5_file_name):
+                        shells_HDF5_file = HDF5_file
+                    else:
+                        shells_HDF5_file = h5py.File(shells_HDF5_file_name, 'r')
+                    break
 
-            if self.__settings.render_particles:
-                if self.__settings.fluorimetry_display:
-                    self.__create_blurry_particles(time_group['particles'])
-                else:
-                    self.__create_particles(time_group['particles'])
 
-            if self.__settings.render_shells:
-                for (shells_time,
-                     shells_HDF5_file_name,
-                     shells_time_group_name) in shells_time_sequence:
+            shells = None
+            if shells_HDF5_file is not None:
+                shells_time_group = shells_HDF5_file['data'][shells_time_group_name]
+                shells = dict(
+                    shells_dataset=shells_time_group['shells'],
+                    domain_shell_assoc=shells_time_group['domain_shell_association'],
+                    domains_dataset=shells_time_group['domains']
+                    )
 
-                    if time >= shells_time: # Backward time search
-
-                        open_flag = False
-                        if os.path.samefile(shells_HDF5_file_name, HDF5_file_name):
-                            shells_HDF5_file = HDF5_file
-                        else:
-                            shells_HDF5_file = h5py.File(shells_HDF5_file_name, 'r')
-                            open_flag = True
-
-                        shells_data_group = shells_HDF5_file['data']
-                        shells_time_group = shells_data_group[shells_time_group_name]
-                        shells_dataset = shells_time_group['shells']
-
-                        domain_shell_assoc = shells_time_group['domain_shell_association']
-                        domain_dataset = shells_time_group['domains']
-
-                        self.__create_shells(shells_dataset,
-                                             domain_shell_assoc,
-                                             domain_dataset)
-                        if open_flag:
-                            shells_HDF5_file.close()
-                        break
+            self.__renderer.render(time, time_group['particles'], shells)
 
             image_file_name = \
                 os.path.join(image_file_dir,
                              self.__settings.image_file_name_format % time_count)
 
-            self.__output_snapshot(image_file_name)
+            self.save_rendered(image_file_name)
             snapshot_file_list.append(image_file_name)
 
-            HDF5_file.close()
+            if shells_HDF5_file is not None and \
+               shells_HDF5_file is not HDF5_file:
+                shells_HDF5_file.close()
 
+            HDF5_file.close()
             time_count += 1
 
         return snapshot_file_list
 
-
-    def make_movie(self,
-                    image_file_dir,
-                    movie_file_dir):
-
+    def make_movie(self, image_file_dir, movie_file_dir):
         """
         Make a movie by FFmpeg
         Please install FFmpeg (http://ffmpeg.org/) from the download site
@@ -1062,9 +879,7 @@ class Visualizer(object):
         raise VisualizerError \
             ('Cannot access ffmpeg. Please set ffmpeg_bin_path correctly.')
 
-
-    def output_movie(self, movie_file_dir, image_tmp_root = None):
-
+    def output_movie(self, HDF5_file_path_list, movie_file_dir, image_tmp_root = None):
         """
         Output movie to movie_file_dir
         This function creates temporal image files to output the movie.
@@ -1077,7 +892,7 @@ class Visualizer(object):
             image_tmp_dir = tempfile.mkdtemp(dir = image_tmp_root)
 
         try:
-            snapshot_file_list = self.output_snapshots(image_tmp_dir)
+            snapshot_file_list = self.output_snapshots(HDF5_file_path_list, image_tmp_dir)
             self.make_movie(image_tmp_dir, movie_file_dir)
 
             # Remove snapshots on temporary directory

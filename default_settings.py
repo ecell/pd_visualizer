@@ -5,8 +5,8 @@
 
 """
 
-import rgb_colors
-import domain_kind_constants
+from rgb_colors import *
+from domain_kind_constants import *
 
 #-----------------------------
 # General settings
@@ -19,9 +19,9 @@ render_shells = True
 #-----------------------------
 # Output image settings
 #-----------------------------
-image_height = 1000
-image_width = 1000
-image_background_color = rgb_colors.RGB_LIGHT_SLATE_GRAY
+image_height = 640
+image_width = 640
+image_background_color = RGB_LIGHT_SLATE_GRAY
 image_file_name_format = 'image_%04d.png' # Must be compatible with FFmpeg's input-file notation
 
 #-----------------------------
@@ -90,63 +90,146 @@ wireframed_cube_display = True
 # Axis annotation
 #-----------------------------
 axis_annotation_display = True
-axis_annotation_color = rgb_colors.RGB_WHITE
+axis_annotation_color = RGB_WHITE
 
 #-----------------------------
 # Particle attributes
 #-----------------------------
-default_pattrs = \
-    {
-     # species_id: {'color':RGB_color, 'opacity':opacity_value}
-     1: {'color':rgb_colors.RGB_RED, 'opacity':1.0},
-     2: {'color':rgb_colors.RGB_GREEN, 'opacity':1.0},
-     3: {'color':rgb_colors.RGB_BLUE, 'opacity':1.0},
-     4: {'color':rgb_colors.RGB_PURPLE, 'opacity':1.0},
-     5: {'color':rgb_colors.RGB_ORANGE, 'opacity':1.0},
-     6: {'color':rgb_colors.RGB_YELLOW, 'opacity':1.0},
-     7: {'color':rgb_colors.RGB_CYAN, 'opacity':1.0},
-     8: {'color':rgb_colors.RGB_GRAY, 'opacity':1.0},
-     9: {'color':rgb_colors.RGB_YELLOW_GREEN, 'opacity':1.0},
-     10:{'color':rgb_colors.RGB_LIGHT_GREEN, 'opacity':1.0},
-     11:{'color':rgb_colors.RGB_DARK_GREEN, 'opacity':1.0},
-     12:{'color':rgb_colors.RGB_LIGHT_BLUE, 'opacity':1.0},
-     13:{'color':rgb_colors.RGB_DARK_BLUE, 'opacity':1.0},
-     14:{'color':rgb_colors.RGB_LIGHT_CYAN, 'opacity':1.0},
-     15:{'color':rgb_colors.RGB_DARK_CYAN, 'opacity':1.0},
-     16:{'color':rgb_colors.RGB_LIGHT_GRAY, 'opacity':1.0},
-     }
-
-undefined_pattrs = {'color':rgb_colors.RGB_BLACK, 'opacity':0.5}
-
-user_pattrs = \
-    {
-     # This format must be follows.
-     # species_id: {'color':color, 'opacity':opacity, 'name':name, 'radius':radius}
+particle_attrs = {
+    # species_id: {'color':RGB_color, 'opacity':opacity_value}
+     1: {
+        'color': RGB_RED,
+        'opacity': 1.0,
+        'fluorimetry_wave_length': 546.0e-9,
+        'fluorimetry_brightness': 1.0,
+        'fluorimetry_luminescence_color': RGB_GREEN,
+        },
+     2: {
+        'color': RGB_GREEN,
+        'opacity': 1.0,
+        'fluorimetry_wave_length': 546.0e-9,
+        'fluorimetry_brightness': 1.0,
+        'fluorimetry_luminescence_color': RGB_GREEN,
+        },
+     3: {
+        'color': RGB_BLUE,
+        'opacity': 1.0,
+        'fluorimetry_wave_length': 546.0e-9,
+        'fluorimetry_brightness': 1.0,
+        'fluorimetry_luminescence_color': RGB_GREEN,
+        },
+     4: {
+        'color': RGB_PURPLE,
+        'opacity': 1.0,
+        'fluorimetry_wave_length': 546.0e-9,
+        'fluorimetry_brightness': 1.0,
+        'fluorimetry_luminescence_color': RGB_GREEN,
+        },
+     5: {
+        'color': RGB_ORANGE,
+        'opacity': 1.0,
+        'fluorimetry_wave_length': 546.0e-9,
+        'fluorimetry_brightness': 1.0,
+        'fluorimetry_luminescence_color': RGB_GREEN,
+        },
+     6: {
+        'color': RGB_YELLOW,
+        'opacity': 1.0,
+        'fluorimetry_wave_length': 546.0e-9,
+        'fluorimetry_brightness': 1.0,
+        'fluorimetry_luminescence_color': RGB_GREEN,
+        },
+     7: {
+        'color': RGB_CYAN,
+        'opacity': 1.0,
+        'fluorimetry_wave_length': 546.0e-9,
+        'fluorimetry_brightness': 1.0,
+        'fluorimetry_luminescence_color': RGB_GREEN,
+        },
+     8: {
+        'color': RGB_GRAY,
+        'opacity': 1.0,
+        'fluorimetry_wave_length': 546.0e-9,
+        'fluorimetry_brightness': 1.0,
+        'fluorimetry_luminescence_color': RGB_GREEN,
+        },
+     9: {
+        'color': RGB_YELLOW_GREEN,
+        'opacity': 1.0,
+        'fluorimetry_wave_length': 546.0e-9,
+        'fluorimetry_brightness': 1.0,
+        'fluorimetry_luminescence_color': RGB_GREEN,
+        },
+    10: {
+        'color': RGB_LIGHT_GREEN,
+        'opacity': 1.0,
+        'fluorimetry_wave_length': 546.0e-9,
+        'fluorimetry_brightness': 1.0,
+        'fluorimetry_luminescence_color': RGB_GREEN,
+        },
+    11: {
+        'color': RGB_DARK_GREEN,
+        'opacity': 1.0,
+        'fluorimetry_wave_length': 546.0e-9,
+        'fluorimetry_brightness': 1.0,
+        'fluorimetry_luminescence_color': RGB_GREEN,
+        },
+    12: {
+        'color': RGB_LIGHT_BLUE,
+        'opacity': 1.0,
+        'fluorimetry_wave_length': 546.0e-9,
+        'fluorimetry_brightness': 1.0,
+        'fluorimetry_luminescence_color': RGB_GREEN,
+        },
+    13: {
+        'color': RGB_DARK_BLUE,
+        'opacity': 1.0,
+        'fluorimetry_wave_length': 546.0e-9,
+        'fluorimetry_brightness': 1.0,
+        'fluorimetry_luminescence_color': RGB_GREEN,
+        },
+    14: {
+        'color': RGB_LIGHT_CYAN,
+        'opacity': 1.0,
+        'fluorimetry_wave_length': 546.0e-9,
+        'fluorimetry_brightness': 1.0,
+        'fluorimetry_luminescence_color': RGB_GREEN,
+        },
+    15: {
+        'color': RGB_DARK_CYAN,
+        'opacity': 1.0,
+        'fluorimetry_wave_length': 546.0e-9,
+        'fluorimetry_brightness': 1.0,
+        'fluorimetry_luminescence_color': RGB_GREEN,
+        },
+    16: {
+        'color': RGB_LIGHT_GRAY,
+        'opacity': 1.0,
+        'fluorimetry_wave_length': 546.0e-9,
+        'fluorimetry_brightness': 1.0,
+        'fluorimetry_luminescence_color': RGB_GREEN,
+        },
     }
+
+default_particle_attr = {'color': RGB_BLACK, 'opacity': 0.5}
 
 #-----------------------------
 # Domain attributes
 #-----------------------------
-default_dattrs = \
+domain_attrs = \
     {
      # domain_kind: {'color':color, 'opacity':opacity}
-     domain_kind_constants.SINGLE:{'color':rgb_colors.RGB_WHITE, 'opacity':0.2},
-     domain_kind_constants.PAIR:  {'color':rgb_colors.RGB_VIOLET, 'opacity':0.2},
-     domain_kind_constants.MULTI: {'color':rgb_colors.RGB_ORANGE_RED, 'opacity':0.2},
+     SINGLE:{'color': RGB_WHITE, 'opacity':0.2},
+     PAIR:  {'color': RGB_VIOLET, 'opacity':0.2},
+     MULTI: {'color': RGB_ORANGE_RED, 'opacity':0.2},
     }
 
-undefined_dattrs = {'color':rgb_colors.RGB_BLACK, 'opacity':0.2}
-
-user_dattrs = \
-    {
-     # This format must be follows.
-     # domain_kind: {'color':RGB_color, 'opacity':opacity_value}
-    }
+default_domain_attr = {'color': RGB_BLACK, 'opacity':0.2}
 
 #-----------------------------
 # Surface object: plane 
 #-----------------------------
-plane_surface_color = rgb_colors.RGB_WHITE
+plane_surface_color = RGB_WHITE
 plane_surface_opacity = 1.0
 # Original point of plane  (This unit is world_size)
 plane_surface_origin = (0, 0, 0)
@@ -158,43 +241,8 @@ plane_surface_axis_2 = (0, 1, 0)
 plane_surface_list = []
 
 #-----------------------------
-# Filters for particles
-#-----------------------------
-# function of display filter by particle_id:
-#   bool pfilter_pid_func(unsigned int*8 particle_id)
-pfilter_pid_func = None
-
-# function of display filter by position:
-#   bool pfilter_pos_func(double pos[3])
-pfilter_pos_func = None
-
-# function of display filter by species_id:
-#   pattr pfilter_sid_func(unsigned int*8 species_id)
-pfilter_sid_func = None
-
-# particle species_id map
-# This format must be follows.
-#   pfilter_sid_map = { \
-#      species_id_0 : display_species_id_0,
-#      species_id_1 : display_species_id_1,
-#      ...
-#      species_id_N : display_species_id_N
-#      }
-#
-pfilter_sid_map = None
-
-# particle species_id mapping function:
-#   unsigned int*8 display_species_id pfilter_sid_map_func(unsigned int*8 species_id)
-pfilter_sid_map_func = None
-
-#-----------------------------
 # Micro fluorimetry settings
 #-----------------------------
 fluorimetry_display = False
-fluorimetry_wave_length = 546.0e-9
-fluorimetry_luminescence_color = rgb_colors.RGB_GREEN
-fluorimetry_axial_voxel_number = 100
-fluorimetry_background_color = rgb_colors.RGB_BLACK
+fluorimetry_axial_voxel_number = 300
 fluorimetry_shadow_display = False
-fluorimetry_accumulation_mode = 0 # 0:to max, 1:to sum
-fluorimetry_brightness = 1.0
