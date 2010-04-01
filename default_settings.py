@@ -27,12 +27,9 @@ image_file_name_format = 'image_%04d.png' # Must be compatible with FFmpeg's inp
 #-----------------------------
 # FFMPEG command settings
 #-----------------------------
-# Output movie filename
-ffmpeg_movie_file_name = 'movie.mp4'
-
 # FFMPEG binary path (ex.'/usr/local/bin/ffmpeg')
 # For empty string, trace back to $PATH. 
-ffmpeg_bin_path = ''
+ffmpeg_bin_path = 'ffmpeg'
 
 # FFMPEG option (Please specify FFMPEG's options except IO-filename option.)
 ffmpeg_additional_options = '-sameq -r 5'

@@ -227,12 +227,13 @@ class Settings(object):
 
 
 class Renderer(object):
-    def __init__(self, settings, species_dataset, world_size):
+    def __init__(self, settings, species_list, world_size):
         assert  isinstance(settings, Settings)
+        assert world_size is not None
         self.__settings = settings
         self.__world_size = world_size
 
-        self.__build_particle_attrs(species_dataset)
+        self.__build_particle_attrs(species_list)
         self.__build_domain_attrs()
         self.renderer = self.__create_renderer()
 
@@ -299,17 +300,16 @@ class Renderer(object):
 
         return plane_list
 
-    def __build_particle_attrs(self, species_dataset):
+    def __build_particle_attrs(self, species_list):
         # Data transfer of species dataset to the dictionary
         species_dict = {}
         species_idmap = {}
-        id_idx = species_dataset.dtype.names.index('id')
-        for x in species_dataset:
-            species_id = x[id_idx]
+        for species in species_list:
+            species_id = species['id']
             display_species_id = self.__settings.pfilter_sid_map_func(species_id)
             if display_species_id is not None:
                 species_idmap[species_id] = display_species_id
-                species_dict[species_id] = dict((species_dataset.dtype.names[i], v) for i, v in enumerate(x))
+                species_dict[species_id] = dict((species.dtype.names[i], v) for i, v in enumerate(species))
 
         # Delete duplicated numbers by set constructor
         self.__species_idmap = species_idmap
@@ -544,9 +544,9 @@ class Renderer(object):
             filter.SetOutputScalarTypeToUnsignedChar()
             filter.SetInputConnection(gs.GetOutputPort())
 
-            #mapper = vtk.vtkFixedPointVolumeRayCastMapper()
+            mapper = vtk.vtkFixedPointVolumeRayCastMapper()
             #mapper = vtk.vtkVolumeTextureMapper3D()
-            mapper = vtk.vtkVolumeTextureMapper2D()
+            #mapper = vtk.vtkVolumeTextureMapper2D()
             mapper.SetInputConnection(filter.GetOutputPort())
 
             volume = vtk.vtkVolume()
@@ -651,7 +651,8 @@ class Renderer(object):
         for plane in self.__plane_list:
             self.renderer.AddActor(plane)
 
-    def render(self, t, particles_dataset, shells=None):
+    def render(self, t, particles_dataset, shells_dataset=None,
+               domain_shell_assoc=None, domains_dataset=None):
         self.__reset_actors()
         if self.__time_legend is not None:
             self.__time_legend.SetEntryString(0,
@@ -663,27 +664,112 @@ class Renderer(object):
             if self.__settings.render_particles:
                 self.__render_particles(particles_dataset)
 
-            if self.__settings.render_shells and shells is not None:
-                self.__render_shells(**shells)
+            if self.__settings.render_shells and shells_dataset is not None:
+                self.__render_shells(shells_dataset,
+                                     domain_shell_assoc,
+                                     domains_dataset)
 
 
 class Visualizer(object):
     "Visualization class of e-cell simulator"
 
-    def __init__(self, settings = Settings()):
+    def __init__(self, hdf5_file_path_list, image_file_dir='.', movie_filename='movie.mp4', cleanup_image_file_dir=False, settings=Settings()):
         assert isinstance(settings, Settings)
+
         self.__settings = settings
 
-        self.__renderer = None
-        self.__window = None
+        if image_file_dir is not None:
+            image_file_dir = tempfile.mkdtemp(dir=os.getcwd())
+            cleanup_image_file_dir = True
 
-    def __create_render_window(self):
-        # Create a render window
+        self.__image_file_dir = image_file_dir
+        self.__cleanup_image_file_dir = cleanup_image_file_dir
+        self.__movie_filename = movie_filename
+
+        particles_time_sequence = []
+        shells_time_sequence = []
+        world_size = None
+        species_list = None
+
+        for hdf5_file_path in hdf5_file_path_list:
+            try:
+                hdf5_file = h5py.File(hdf5_file_path, 'r')
+                data_group = hdf5_file['data']
+                species_dataset = hdf5_file['species']
+                if species_dataset is not None:
+                    species_list = numpy.zeros(shape=species_dataset.shape,
+                                               dtype=species_dataset.dtype)
+                    species_dataset.read_direct(species_list)
+
+                _world_size = data_group.attrs['world_size']
+                if world_size is not None and _world_size != world_size:
+                    raise VisualizerError('World sizes differ between datagroups')
+                world_size = _world_size
+
+                for time_group_name in data_group:
+                    time_group = data_group[time_group_name]
+                    elem = (time_group.attrs['t'], hdf5_file_path, time_group_name)
+                    if 'particles' in time_group.keys():
+                        particles_time_sequence.append(elem)
+                    if 'shells' in time_group.keys():
+                        shells_time_sequence.append(elem)
+
+                hdf5_file.close()
+            except Exception, e:
+                if not self.__settings.ignore_open_errors:
+                    raise
+                print 'Ignoring error: ', e
+
+        if species_list is None:
+            raise VisualizerError(
+                    'Cannot find species dataset in any given hdf5 files')
+
+        if len(particles_time_sequence) == 0:
+            raise VisualizerError(
+                    'Cannot find particles dataset in any given hdf5 files: ' \
+                    + ', '.join(hdf5_file_path_list))
+
+        if world_size is None:
+            raise VisualizerError(
+                    'Cannot determine world_size from given hdf5 files: ' \
+                    + ', '.join(hdf5_file_path_list))
+
+        # Sort ascending time order
+        particles_time_sequence.sort(lambda a, b:cmp(a[0], b[0]))
+        # Sort descending time order
+        shells_time_sequence.sort(lambda a, b:cmp(a[0], b[0]))
+
+        idx = 0
+        time_sequence = []
+        for pentry in particles_time_sequence:
+            while idx < len(shells_time_sequence) and shells_time_sequence[idx][0] <= pentry[0]:
+                idx += 1
+            idx -= 1
+            if idx < 0:
+                idx = 0
+                sentry = None
+            else:
+                sentry = shells_time_sequence[idx]
+            time_sequence.append(
+                (pentry[0], pentry[1], pentry[2], sentry[1], sentry[2]))
+        
+        self.__world_size = world_size
+        self.__time_sequence = time_sequence
+
+        self.__renderer = Renderer(self.__settings, species_list, world_size)
         window = vtk.vtkRenderWindow()
         window.SetSize(int(self.__settings.image_width),
                        int(self.__settings.image_height))
         window.SetOffScreenRendering(self.__settings.offscreen_rendering)
-        return window
+        window.AddRenderer(self.__renderer.renderer)
+        self.__window = window
+
+    def __del__(self):
+        if self.__cleanup_image_file_dir:
+            for parent_dir, dirs, files in os.walk(self.__image_file_dir, False):
+                for file in files:
+                    os.remove(os.path.join(parent_dir, file))
+                os.rmdir(parent_dir)
 
     def save_rendered(self, image_file_name):
         "Output snapshot to image file"
@@ -719,120 +805,65 @@ class Visualizer(object):
         writer.SetFileName(image_file_name)
         writer.Write()
 
-    def output_snapshots(self, HDF5_file_path_list, image_file_dir):
+    def output_snapshots(self):
         "Output snapshots from HDF5 dataset"
 
-        self.__HDF5_file_path_list = HDF5_file_path_list
-
         # Create image file folder
-        if not os.path.exists(image_file_dir):
-            os.makedirs(image_file_dir)
-
-        # Check empty path list
-        if len(HDF5_file_path_list) == 0:
-            raise VisualizerError('Empty HDF5_file_path_list.\n Please set it.')
-
-        # Check accessable to the path list
-        for path in HDF5_file_path_list:
-            if(not os.path.exists(path) or
-               not os.path.isfile(path) or
-               not os.access(path, os.R_OK)):
-                raise VisualizerError('Cannot accsess HDF5 file: ' + path)
-
-        # Get time seuqence in data group of HDF5 files
-        #   and sort the loading order
-
-        particles_time_sequence = []
-        shells_time_sequence = []
-
-        for HDF5_file_path in HDF5_file_path_list:
-            try:
-                HDF5_file = h5py.File(HDF5_file_path, 'r')
-                data_group = HDF5_file['data']
-
-                for time_group_name in data_group:
-                    time_group = data_group[time_group_name]
-                    time = time_group.attrs['t']
-                    elem = (time, HDF5_file_path, time_group_name)
-                    if 'particles' in time_group.keys():
-                        particles_time_sequence.append(elem)
-                    if 'shells' in time_group.keys():
-                        shells_time_sequence.append(elem)
-
-                HDF5_file.close()
-            except Exception, e:
-                if not self.__settings.ignore_open_errors:
-                    raise
-                print 'Ignoring error: ', e
-
-        if len(particles_time_sequence) == 0:
-            raise VisualizerError(
-                    'Cannot find particles dataset in HDF5_file_path_list: ' \
-                    + ', '.join(HDF5_file_path_list))
-
-        # Sort ascending time order
-        particles_time_sequence.sort(lambda a, b:cmp(a[0], b[0]))
-        # Sort descending time order
-        shells_time_sequence.sort(lambda a, b:-cmp(a[0], b[0]))
-
-        # Visualize by the obtained time sequence
+        if not os.path.exists(self.__image_file_dir):
+            os.makedirs(self.__image_file_dir)
 
         time_count = 0
         snapshot_file_list = []
 
-        for time, HDF5_file_name, time_group_name in particles_time_sequence:
-            HDF5_file = h5py.File(HDF5_file_name, 'r')
-
-            data_group = HDF5_file['data']
-            species_dataset = HDF5_file['species']
-
-            world_size = data_group.attrs['world_size']
-            time_group = data_group[time_group_name]
-
-            if self.__renderer is None:
-                self.__renderer = Renderer(self.__settings, species_dataset, world_size)
-                self.__window = self.__create_render_window()
-                self.__window.AddRenderer(self.__renderer.renderer)
-
-            shells_HDF5_file = None
-            for shells_time, shells_HDF5_file_name, shells_time_group_name \
-                in shells_time_sequence:
-                if time >= shells_time: # Backward time search
-                    if os.path.samefile(shells_HDF5_file_name, HDF5_file_name):
-                        shells_HDF5_file = HDF5_file
-                    else:
-                        shells_HDF5_file = h5py.File(shells_HDF5_file_name, 'r')
-                    break
-
-
-            shells = None
-            if shells_HDF5_file is not None:
-                shells_time_group = shells_HDF5_file['data'][shells_time_group_name]
-                shells = dict(
-                    shells_dataset=shells_time_group['shells'],
-                    domain_shell_assoc=shells_time_group['domain_shell_association'],
-                    domains_dataset=shells_time_group['domains']
-                    )
-
-            self.__renderer.render(time, time_group['particles'], shells)
-
+        for entry in self.__time_sequence:
             image_file_name = \
-                os.path.join(image_file_dir,
+                os.path.join(self.__image_file_dir,
                              self.__settings.image_file_name_format % time_count)
-
+            self.render(*entry[1:])
             self.save_rendered(image_file_name)
             snapshot_file_list.append(image_file_name)
-
-            if shells_HDF5_file is not None and \
-               shells_HDF5_file is not HDF5_file:
-                shells_HDF5_file.close()
-
-            HDF5_file.close()
-            time_count += 1
+        time_count += 1
 
         return snapshot_file_list
 
-    def make_movie(self, image_file_dir, movie_file_dir):
+    def render(self, hdf5_file_name, time_group_name, shells_hdf5_file_name,
+               shells_time_group_name):
+        hdf5_file = h5py.File(hdf5_file_name, 'r')
+        if shells_hdf5_file_name is not None:
+            if shells_hdf5_file_name != hdf5_file_name:
+                shells_hdf5_file = h5py.File(shells_hdf5_file_name, 'r')
+            else:
+                shells_hdf5_file = hdf5_file
+
+        try:
+            data_group = hdf5_file['data']
+            species_dataset = hdf5_file['species']
+
+            world_size = data_group.attrs['world_size']
+            time_group = data_group[time_group_name]
+            t = time_group.attrs['t'] 
+
+            shells_dataset = None
+            domain_shell_assoc = None
+            domains_dataset = None
+
+            if shells_hdf5_file is not None:
+                shells_time_group = shells_hdf5_file['data'][shells_time_group_name]
+                shells_dataset = shells_time_group['shells']
+                domain_shell_assoc = shells_time_group['domain_shell_association']
+                domains_dataset = shells_time_group['domains']
+
+            self.__renderer.render(t, time_group['particles'],
+                    shells_dataset, domain_shell_assoc, domains_dataset)
+
+        finally:
+            if shells_hdf5_file is not None and \
+               shells_hdf5_file is not hdf5_file:
+                shells_hdf5_file.close()
+
+            hdf5_file.close()
+
+    def make_movie(self):
         """
         Make a movie by FFmpeg
         Please install FFmpeg (http://ffmpeg.org/) from the download site
@@ -840,71 +871,21 @@ class Visualizer(object):
         """
 
         input_image_filename = \
-            os.path.join(image_file_dir,
+            os.path.join(self.__image_file_dir,
                          self.__settings.image_file_name_format)
-
-        output_movie_filename = \
-            os.path.join(movie_file_dir,
-                         self.__settings.ffmpeg_movie_file_name)
-
-        # Create movie file folder
-        if not os.path.exists(movie_file_dir):
-            os.makedirs(movie_file_dir)
-
-        # Remove existing movie file
-        if os.path.exists(output_movie_filename):
-            if os.path.isfile(output_movie_filename):
-                os.remove(output_movie_filename)
-            else:
-                raise VisualizerError \
-                    ('Cannot overwrite movie file: ' + output_movie_filename)
 
         # Set FFMPEG options
         options = self.__settings.ffmpeg_additional_options \
-            + ' -i "' + input_image_filename + '" ' \
-            + output_movie_filename
+            + ' -y -i "' + input_image_filename + '" ' \
+            + self.__movie_filename
 
-        if self.__settings.ffmpeg_bin_path:
-            if(os.path.isfile(self.__settings.ffmpeg_bin_path) and
-               os.access(self.__settings.ffmpeg_bin_path, os.X_OK)):
-                os.system(self.__settings.ffmpeg_bin_path + ' ' + options)
-                return
-        else:
-            for dir in os.environ['PATH'].split(os.pathsep):
-                search_path = os.path.join(dir, 'ffmpeg')
-                if os.access(search_path, os.X_OK):
-                    os.system(search_path + ' ' + options)
-                    return
+        os.system(self.__settings.ffmpeg_bin_path + ' ' + options)
 
-        raise VisualizerError \
-            ('Cannot access ffmpeg. Please set ffmpeg_bin_path correctly.')
-
-    def output_movie(self, HDF5_file_path_list, movie_file_dir, image_tmp_root = None):
+    def output_movie(self):
         """
         Output movie to movie_file_dir
         This function creates temporal image files to output the movie.
         These temporal files and directory are removed after the output.
         """
-
-        if image_tmp_root == None:
-            image_tmp_dir = tempfile.mkdtemp(dir = os.getcwd())
-        else:
-            image_tmp_dir = tempfile.mkdtemp(dir = image_tmp_root)
-
-        try:
-            snapshot_file_list = self.output_snapshots(HDF5_file_path_list, image_tmp_dir)
-            self.make_movie(image_tmp_dir, movie_file_dir)
-
-            # Remove snapshots on temporary directory
-            # (only if making snapshots succeeded)
-            for snapshot_file in snapshot_file_list:
-                if(os.path.exists(snapshot_file) and
-                   os.path.isfile(snapshot_file)):
-                    os.remove(snapshot_file)
-
-        except VisualizerError, e:
-            raise
-        finally:
-            # Remove temporary directory if it is empty.
-            if len(os.listdir(image_tmp_dir)) == 0:
-                os.rmdir(image_tmp_dir)
+        self.output_snapshots()
+        self.make_movie()

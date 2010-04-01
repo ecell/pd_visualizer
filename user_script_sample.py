@@ -13,8 +13,8 @@ DATA_FILE = './hdf5_data/dimer.hdf5'
 DATA_FILES = './hdf5_data/*.hdf5'
 # Case 1: Most simple script
 
-vs = visualizer.Visualizer()
-vs.output_movie([DATA_FILE], './')
+vs = visualizer.Visualizer([DATA_FILE])
+vs.output_movie()
 
 # Case 2: Custom Particle Snapshot
 
@@ -26,9 +26,9 @@ settings.add_plane_surface (origin = (0.0, 0.0, 0.0),
                             axis2 = (0.0, 0.0, 1.0),
                             color = RGB_LIGHT_GREEN)
 
-vs = visualizer.Visualizer(settings)
-vs.output_snapshots([DATA_FILE], image_file_dir = './images')
-vs.make_movie(image_file_dir = './images', movie_file_dir = './')
+vs = visualizer.Visualizer([DATA_FILE], image_file_dir = './images', settings=settings)
+vs.output_snapshots()
+vs.make_movie()
 
 # Case 3: Focused Snapshot
 
@@ -36,8 +36,8 @@ settings = visualizer.Settings({'camera_view_angle':5})
 settings.set_image(file_name_format = 'case3_%04d.png')
 settings.set_ffmpeg(movie_file_name = 'case3.mp4')
 
-vs = visualizer.Visualizer(settings)
-vs.output_movie([DATA_FILE], movie_file_dir = './')
+vs = visualizer.Visualizer([DATA_FILE], settings=settings)
+vs.output_movie()
 
 # Case 4: Filtered Particle Snapshot
 
@@ -63,8 +63,8 @@ settings.pfilter_func = user_pfilter_func
 settings.pfilter_sid_map_func = user_pfilter_sid_map_func
 settings.domain_attrs[SINGLE]['color'] = RGB_BLUE
 
-vs = visualizer.Visualizer(settings)
-vs.output_movie(glob.glob(DATA_FILES), movie_file_dir = './')
+vs = visualizer.Visualizer(glob.glob(DATA_FILES), settings=settings)
+vs.output_movie()
 
 ### Blurry effect cases (Case 5-7)
 ### (New feature of revision 1)
@@ -75,9 +75,9 @@ settings = visualizer.Settings()
 settings.set_fluorimetry(display = True)
 settings.set_ffmpeg(movie_file_name = 'case5.mp4')
 settings.set_image(file_name_format = 'case5_%04d.png')
-vs = visualizer.Visualizer(settings)
-vs.output_snapshots([DATA_FILE], image_file_dir = './images')
-vs.make_movie(image_file_dir = './images', movie_file_dir = './')
+vs = visualizer.Visualizer([DATA_FILE], image_file_dir = './images', settings=settings)
+vs.output_snapshots()
+vs.make_movie()
 
 print 'finished'
 
