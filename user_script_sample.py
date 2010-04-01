@@ -79,15 +79,5 @@ vs = visualizer.Visualizer(settings)
 vs.output_snapshots([DATA_FILE], image_file_dir = './images')
 vs.make_movie(image_file_dir = './images', movie_file_dir = './')
 
-## Case 6: Accumulation mode to sum (opacity_scaling = 1.0)
-settings.set_fluorimetry(accumulation_mode = 1)
-settings.set_ffmpeg(movie_file_name = 'case6.mp4')
-vs.output_movie([DATA_FILE], movie_file_dir = './')
-
-## Case 7: Accumulation mode to sum (opacity_scaling = 0.5)
-settings.set_fluorimetry(brightness = 0.5)
-settings.set_ffmpeg(movie_file_name = 'case7.mp4')
-vs.output_movie([DATA_FILE], movie_file_dir = './')
-
 print 'finished'
 
