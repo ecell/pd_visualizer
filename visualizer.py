@@ -230,7 +230,7 @@ class Renderer(object):
     def __init__(self, settings, species_list, world_size):
         assert  isinstance(settings, Settings)
         assert world_size is not None
-        self.__settings = settings
+        self.settings = settings
         self.__world_size = world_size
 
         self.__build_particle_attrs(species_list)
@@ -244,29 +244,29 @@ class Renderer(object):
         self.__plane_list = self.__create_planes()
 
         # Create axis annotation
-        if self.__settings.axis_annotation_display:
+        if self.settings.axis_annotation_display:
             self.__axes = self.__create_axes()
             self.__axes.SetCamera(self.renderer.GetActiveCamera())
 
         # Create a wireframed cube
-        if self.__settings.wireframed_cube_display:
+        if self.settings.wireframed_cube_display:
             self.__cube = self.__create_wireframe_cube()
 
         # Create species legend box
-        if self.__settings.species_legend_display:
+        if self.settings.species_legend_display:
             self.__species_legend = self.__create_species_legend()
 
         # Create time legend box
-        if self.__settings.time_legend_display:
+        if self.settings.time_legend_display:
             self.__time_legend = self.__create_time_legend()
 
     def __get_domain_color(self, domain_kind):
         return self.__dattrs.get \
-                (domain_kind, self.__settings.default_domain_attr)['color']
+                (domain_kind, self.settings.default_domain_attr)['color']
 
     def __get_domain_opacity(self, domain_kind):
         return self.__dattrs.get \
-                (domain_kind, self.__settings.default_domain_attr)['opacity']
+                (domain_kind, self.settings.default_domain_attr)['opacity']
 
     def __get_legend_position(self, location, height, width, offset):
         if location == 0:
@@ -282,7 +282,7 @@ class Renderer(object):
 
     def __create_planes(self):
         plane_list = []
-        for x in self.__settings.plane_surface_list:
+        for x in self.settings.plane_surface_list:
             actor = vtk.vtkActor()
             plane = vtk.vtkPlaneSource()
             plane.SetOrigin(x['origin'])
@@ -306,7 +306,7 @@ class Renderer(object):
         species_idmap = {}
         for species in species_list:
             species_id = species['id']
-            display_species_id = self.__settings.pfilter_sid_map_func(species_id)
+            display_species_id = self.settings.pfilter_sid_map_func(species_id)
             if display_species_id is not None:
                 species_idmap[species_id] = display_species_id
                 species_dict[species_id] = dict((species.dtype.names[i], v) for i, v in enumerate(species))
@@ -321,7 +321,7 @@ class Renderer(object):
 
         for species_id, display_species_id in self.__reverse_species_idmap.iteritems():
             # Get default color and opacity from default_settings
-            _def_attr = self.__settings.pfilter_sid_to_pattr_func(display_species_id)
+            _def_attr = self.settings.pfilter_sid_to_pattr_func(display_species_id)
             if _def_attr is not None:
                 def_attr = dict(_def_attr)
                 def_attr.update(species_dict[species_id])
@@ -330,31 +330,31 @@ class Renderer(object):
         self.__mapped_species_idset = self.__pattrs.keys()
 
     def __build_domain_attrs(self):
-        self.__dattrs = self.__settings.domain_attrs
+        self.__dattrs = self.settings.domain_attrs
 
     def __create_camera(self):
         # Create a camera
         camera = vtk.vtkCamera()
 
-        camera.SetFocalPoint(self.__settings.camera_focal_point)
-        camera.SetPosition(self.__settings.camera_base_position)
+        camera.SetFocalPoint(self.settings.camera_focal_point)
+        camera.SetPosition(self.settings.camera_base_position)
 
-        camera.Azimuth(self.__settings.camera_azimuth)
-        camera.Elevation(self.__settings.camera_elevation)
-        camera.SetViewAngle(self.__settings.camera_view_angle)
+        camera.Azimuth(self.settings.camera_azimuth)
+        camera.Elevation(self.settings.camera_elevation)
+        camera.SetViewAngle(self.settings.camera_view_angle)
         return camera
 
     def __add_lights_to_renderer(self, renderer):
         # Create a automatic light kit
         light_kit = vtk.vtkLightKit()
-        light_kit.SetKeyLightIntensity(self.__settings.light_intensity)
+        light_kit.SetKeyLightIntensity(self.settings.light_intensity)
         light_kit.AddLightsToRenderer(renderer)
 
     def __create_renderer(self):
         renderer = vtk.vtkRenderer()
         renderer.SetViewport(0.0, 0.0, 1.0, 1.0)
         renderer.SetActiveCamera(self.__create_camera())
-        renderer.SetBackground(self.__settings.image_background_color)
+        renderer.SetBackground(self.settings.image_background_color)
         self.__add_lights_to_renderer(renderer)
         return renderer
 
@@ -367,7 +367,7 @@ class Renderer(object):
         axes.SetLabelFormat('%g')
         axes.SetFontFactor(1.5)
         tprop = vtk.vtkTextProperty()
-        tprop.SetColor(self.__settings.axis_annotation_color)
+        tprop.SetColor(self.settings.axis_annotation_color)
         tprop.ShadowOn()
         axes.SetAxisTitleTextProperty(tprop)
         axes.SetAxisLabelTextProperty(tprop)
@@ -395,20 +395,20 @@ class Renderer(object):
         # Create legend actor
         time_legend.SetNumberOfEntries(1)
         time_legend.SetPosition \
-            (self.__get_legend_position(self.__settings.time_legend_location,
-                                        self.__settings.time_legend_height,
-                                        self.__settings.time_legend_width,
-                                        self.__settings.time_legend_offset))
+            (self.__get_legend_position(self.settings.time_legend_location,
+                                        self.settings.time_legend_height,
+                                        self.settings.time_legend_width,
+                                        self.settings.time_legend_offset))
 
-        time_legend.SetWidth(self.__settings.time_legend_width)
-        time_legend.SetHeight(self.__settings.time_legend_height)
+        time_legend.SetWidth(self.settings.time_legend_width)
+        time_legend.SetHeight(self.settings.time_legend_height)
 
         tprop = vtk.vtkTextProperty()
         tprop.SetColor(rgb_colors.RGB_WHITE)
         tprop.SetVerticalJustificationToCentered()
         time_legend.SetEntryTextProperty(tprop)
 
-        if self.__settings.time_legend_border_display:
+        if self.settings.time_legend_border_display:
             time_legend.BorderOn()
         else:
             time_legend.BorderOff()
@@ -423,12 +423,12 @@ class Renderer(object):
         # Create legend actor
         species_legend.SetNumberOfEntries(legend_line_numbers)
         species_legend.SetPosition \
-            (self.__get_legend_position(self.__settings.species_legend_location,
-                                        self.__settings.species_legend_height,
-                                        self.__settings.species_legend_width,
-                                        self.__settings.species_legend_offset))
-        species_legend.SetWidth(self.__settings.species_legend_width)
-        species_legend.SetHeight(self.__settings.species_legend_height)
+            (self.__get_legend_position(self.settings.species_legend_location,
+                                        self.settings.species_legend_height,
+                                        self.settings.species_legend_width,
+                                        self.settings.species_legend_offset))
+        species_legend.SetWidth(self.settings.species_legend_width)
+        species_legend.SetHeight(self.settings.species_legend_height)
 
         tprop = vtk.vtkTextProperty()
         tprop.SetColor(rgb_colors.RGB_WHITE)
@@ -436,7 +436,7 @@ class Renderer(object):
 
         species_legend.SetEntryTextProperty(tprop)
 
-        if self.__settings.species_legend_border_display:
+        if self.settings.species_legend_border_display:
             species_legend.BorderOn()
         else:
             species_legend.BorderOff()
@@ -480,7 +480,7 @@ class Renderer(object):
             pattr = self.__pattrs.get(display_species_id)
             if pattr is None:
                 continue
-            pattr = self.__settings.pfilter_func(x, display_species_id, pattr)
+            pattr = self.settings.pfilter_func(x, display_species_id, pattr)
             if pattr is not None:
                 sphere = vtk.vtkSphereSource()
                 sphere.SetRadius(pattr['radius'] / self.__world_size)
@@ -512,7 +512,7 @@ class Renderer(object):
             particles_per_species[display_species_id].InsertNextPoint(
                 pos / self.__world_size)
 
-        nx = ny = nz = self.__settings.fluorimetry_axial_voxel_number
+        nx = ny = nz = self.settings.fluorimetry_axial_voxel_number
 
         for display_species_id, points in particles_per_species.iteritems():
             poly_data = vtk.vtkPolyData()
@@ -561,7 +561,7 @@ class Renderer(object):
             property.SetScalarOpacity(opacity_tfunc)
             property.SetInterpolationTypeToLinear()
 
-            if self.__settings.fluorimetry_shadow_display:
+            if self.settings.fluorimetry_shadow_display:
                 property.ShadeOn()
             else:
                 property.ShadeOff()
@@ -656,15 +656,15 @@ class Renderer(object):
         self.__reset_actors()
         if self.__time_legend is not None:
             self.__time_legend.SetEntryString(0,
-                self.__settings.time_legend_format % t)
+                self.settings.time_legend_format % t)
 
-        if self.__settings.fluorimetry_display:
+        if self.settings.fluorimetry_display:
             self.__render_blurry_particles(particles_dataset)
         else:
-            if self.__settings.render_particles:
+            if self.settings.render_particles:
                 self.__render_particles(particles_dataset)
 
-            if self.__settings.render_shells and shells_dataset is not None:
+            if self.settings.render_shells and shells_dataset is not None:
                 self.__render_shells(shells_dataset,
                                      domain_shell_assoc,
                                      domains_dataset)
@@ -676,13 +676,13 @@ class Visualizer(object):
     def __init__(self, hdf5_file_path_list, image_file_dir='.', movie_filename='movie.mp4', cleanup_image_file_dir=False, settings=Settings()):
         assert isinstance(settings, Settings)
 
-        self.__settings = settings
+        self.settings = settings
 
         if image_file_dir is not None:
             image_file_dir = tempfile.mkdtemp(dir=os.getcwd())
             cleanup_image_file_dir = True
 
-        self.__image_file_dir = image_file_dir
+        self.image_file_dir = image_file_dir
         self.__cleanup_image_file_dir = cleanup_image_file_dir
         self.__movie_filename = movie_filename
 
@@ -716,7 +716,7 @@ class Visualizer(object):
 
                 hdf5_file.close()
             except Exception, e:
-                if not self.__settings.ignore_open_errors:
+                if not self.settings.ignore_open_errors:
                     raise
                 print 'Ignoring error: ', e
 
@@ -747,26 +747,26 @@ class Visualizer(object):
             idx -= 1
             if idx < 0:
                 idx = 0
-                sentry = None
+                sentry = (None, None, None)
             else:
                 sentry = shells_time_sequence[idx]
             time_sequence.append(
                 (pentry[0], pentry[1], pentry[2], sentry[1], sentry[2]))
         
         self.__world_size = world_size
-        self.__time_sequence = time_sequence
+        self.time_sequence = time_sequence
 
-        self.__renderer = Renderer(self.__settings, species_list, world_size)
+        self.__renderer = Renderer(self.settings, species_list, world_size)
         window = vtk.vtkRenderWindow()
-        window.SetSize(int(self.__settings.image_width),
-                       int(self.__settings.image_height))
-        window.SetOffScreenRendering(self.__settings.offscreen_rendering)
+        window.SetSize(int(self.settings.image_width),
+                       int(self.settings.image_height))
+        window.SetOffScreenRendering(self.settings.offscreen_rendering)
         window.AddRenderer(self.__renderer.renderer)
-        self.__window = window
+        self.window = window
 
     def __del__(self):
         if self.__cleanup_image_file_dir:
-            for parent_dir, dirs, files in os.walk(self.__image_file_dir, False):
+            for parent_dir, dirs, files in os.walk(self.image_file_dir, False):
                 for file in files:
                     os.remove(os.path.join(parent_dir, file))
                 os.rmdir(parent_dir)
@@ -798,8 +798,8 @@ class Visualizer(object):
             raise VisualizerError(error_info)
 
         w2i = vtk.vtkWindowToImageFilter()
-        w2i.SetInput(self.__window)
-        self.__window.Render()
+        w2i.SetInput(self.window)
+        self.window.Render()
 
         writer.SetInput(w2i.GetOutput())
         writer.SetFileName(image_file_name)
@@ -809,16 +809,16 @@ class Visualizer(object):
         "Output snapshots from HDF5 dataset"
 
         # Create image file folder
-        if not os.path.exists(self.__image_file_dir):
-            os.makedirs(self.__image_file_dir)
+        if not os.path.exists(self.image_file_dir):
+            os.makedirs(self.image_file_dir)
 
         time_count = 0
         snapshot_file_list = []
 
-        for entry in self.__time_sequence:
+        for entry in self.time_sequence:
             image_file_name = \
-                os.path.join(self.__image_file_dir,
-                             self.__settings.image_file_name_format % time_count)
+                os.path.join(self.image_file_dir,
+                             self.settings.image_file_name_format % time_count)
             self.render(*entry[1:])
             self.save_rendered(image_file_name)
             snapshot_file_list.append(image_file_name)
@@ -829,6 +829,7 @@ class Visualizer(object):
     def render(self, hdf5_file_name, time_group_name, shells_hdf5_file_name,
                shells_time_group_name):
         hdf5_file = h5py.File(hdf5_file_name, 'r')
+        shells_hdf5_file = None
         if shells_hdf5_file_name is not None:
             if shells_hdf5_file_name != hdf5_file_name:
                 shells_hdf5_file = h5py.File(shells_hdf5_file_name, 'r')
@@ -871,15 +872,15 @@ class Visualizer(object):
         """
 
         input_image_filename = \
-            os.path.join(self.__image_file_dir,
-                         self.__settings.image_file_name_format)
+            os.path.join(self.image_file_dir,
+                         self.settings.image_file_name_format)
 
         # Set FFMPEG options
-        options = self.__settings.ffmpeg_additional_options \
+        options = self.settings.ffmpeg_additional_options \
             + ' -y -i "' + input_image_filename + '" ' \
             + self.__movie_filename
 
-        os.system(self.__settings.ffmpeg_bin_path + ' ' + options)
+        os.system(self.settings.ffmpeg_bin_path + ' ' + options)
 
     def output_movie(self):
         """
@@ -889,3 +890,39 @@ class Visualizer(object):
         """
         self.output_snapshots()
         self.make_movie()
+
+
+class InteractingVisualizer(Visualizer):
+    def __init__(self, *arg, **kwarg):
+        Visualizer.__init__(self, *arg, **kwarg)
+        self.interactor = self.window.MakeRenderWindowInteractor()
+        self.interactor.SetRenderWindow(self.window)
+        self.interactor.Initialize()
+        self.time_count = 0
+        self.timer_id = None
+
+    def __timer_callback(self, obj, event_id):
+        if self.time_count < len(self.time_sequence):
+            entry = self.time_sequence[self.time_count]
+            image_file_name = \
+                os.path.join(self.image_file_dir,
+                             self.settings.image_file_name_format % self.time_count)
+            self.render(*entry[1:])
+            self.save_rendered(image_file_name)
+            self.time_count += 1
+        else:
+            self.interactor.DestroyTimer(self.timer_id)
+
+    def output_snapshots(self):
+        "Output snapshots from HDF5 dataset"
+
+        # Create image file folder
+        if not os.path.exists(self.image_file_dir):
+            os.makedirs(self.image_file_dir)
+
+        self.time_count = 0
+
+        self.timer_id = self.interactor.CreateRepeatingTimer(1000)
+        self.interactor.AddObserver('TimerEvent', self.__timer_callback, .0)
+        self.interactor.Start()
+
