@@ -15,6 +15,7 @@ ignore_open_errors = False
 offscreen_rendering = False
 render_particles = True
 render_shells = True
+scaling = 1
 
 #-----------------------------
 # Output image settings
@@ -241,5 +242,5 @@ plane_surface_list = []
 # Micro fluorimetry settings
 #-----------------------------
 fluorimetry_display = False
-fluorimetry_axial_voxel_number = 300
+fluorimetry_axial_voxel_number = 100
 fluorimetry_shadow_display = False

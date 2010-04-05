@@ -282,12 +282,13 @@ class Renderer(object):
 
     def __create_planes(self):
         plane_list = []
+        scaling = self.settings.scaling
         for x in self.settings.plane_surface_list:
             actor = vtk.vtkActor()
             plane = vtk.vtkPlaneSource()
-            plane.SetOrigin(x['origin'])
-            plane.SetPoint1(x['axis1'])
-            plane.SetPoint2(x['axis2'])
+            plane.SetOrigin(x['origin'] * scaling)
+            plane.SetPoint1(x['axis1'] * scaling)
+            plane.SetPoint2(x['axis2'] * scaling)
 
             mapper = vtk.vtkPolyDataMapper()
             mapper.SetInput(plane.GetOutput())
@@ -336,8 +337,11 @@ class Renderer(object):
         # Create a camera
         camera = vtk.vtkCamera()
 
-        camera.SetFocalPoint(self.settings.camera_focal_point)
-        camera.SetPosition(self.settings.camera_base_position)
+        camera.SetFocalPoint(
+            numpy.array(self.settings.camera_focal_point) *
+            self.settings.scaling)
+        camera.SetPosition(numpy.array(self.settings.camera_base_position) *
+            self.settings.scaling)
 
         camera.Azimuth(self.settings.camera_azimuth)
         camera.Elevation(self.settings.camera_elevation)
@@ -352,7 +356,7 @@ class Renderer(object):
 
     def __create_renderer(self):
         renderer = vtk.vtkRenderer()
-        renderer.SetViewport(0.0, 0.0, 1.0, 1.0)
+        renderer.SetViewport(0.0, 0.0, 1., 1.)
         renderer.SetActiveCamera(self.__create_camera())
         renderer.SetBackground(self.settings.image_background_color)
         self.__add_lights_to_renderer(renderer)
@@ -360,7 +364,7 @@ class Renderer(object):
 
     def __create_axes(self):
         axes = vtk.vtkCubeAxesActor2D()
-        axes.SetBounds(0.0, 1.0, 0.0, 1.0, 0.0, 1.0)
+        axes.SetBounds(numpy.array([0.0, 1.0, 0.0, 1.0, 0.0, 1.0]) * self.settings.scaling)
         axes.SetRanges(0.0, self.__world_size,
                               0.0, self.__world_size,
                               0.0, self.__world_size)
@@ -378,8 +382,9 @@ class Renderer(object):
 
     def __create_wireframe_cube(self):
         cube = vtk.vtkCubeSource()
-        cube.SetBounds(0.0, 1.0, 0.0, 1.0, 0.0, 1.0)
-        cube.SetCenter(0.5, 0.5, 0.5)
+        scaling = self.settings.scaling
+        cube.SetBounds(numpy.array([0.0, 1.0, 0.0, 1.0, 0.0, 1.0]) * scaling)
+        cube.SetCenter(numpy.array([0.5, 0.5, 0.5]) * scaling)
 
         mapper = vtk.vtkPolyDataMapper()
         mapper.SetInputConnection(cube.GetOutputPort())
@@ -394,11 +399,12 @@ class Renderer(object):
 
         # Create legend actor
         time_legend.SetNumberOfEntries(1)
-        time_legend.SetPosition \
-            (self.__get_legend_position(self.settings.time_legend_location,
-                                        self.settings.time_legend_height,
-                                        self.settings.time_legend_width,
-                                        self.settings.time_legend_offset))
+        time_legend.SetPosition(
+            self.__get_legend_position(
+                self.settings.time_legend_location,
+                self.settings.time_legend_height,
+                self.settings.time_legend_width,
+                self.settings.time_legend_offset))
 
         time_legend.SetWidth(self.settings.time_legend_width)
         time_legend.SetHeight(self.settings.time_legend_height)
@@ -422,11 +428,12 @@ class Renderer(object):
 
         # Create legend actor
         species_legend.SetNumberOfEntries(legend_line_numbers)
-        species_legend.SetPosition \
-            (self.__get_legend_position(self.settings.species_legend_location,
-                                        self.settings.species_legend_height,
-                                        self.settings.species_legend_width,
-                                        self.settings.species_legend_offset))
+        species_legend.SetPosition(
+            self.__get_legend_position(
+                self.settings.species_legend_location,
+                self.settings.species_legend_height,
+                self.settings.species_legend_width,
+                self.settings.species_legend_offset))
         species_legend.SetWidth(self.settings.species_legend_width)
         species_legend.SetHeight(self.settings.species_legend_height)
 
@@ -468,13 +475,12 @@ class Renderer(object):
 
     def __render_particles(self, particles_dataset):
         # Data transfer from HDF5 dataset to numpy array for fast access
-        particles_array = numpy.zeros(shape = particles_dataset.shape,
-                                      dtype = particles_dataset.dtype)
+        scaling = self.settings.scaling
+        species_id_idx = particles_dataset.dtype.names.index('species_id')
+        position_idx = particles_dataset.dtype.names.index('position')
 
-        particles_dataset.read_direct(particles_array)
-
-        for x in particles_array:
-            display_species_id = self.__species_idmap.get(x['species_id'])
+        for x in particles_dataset:
+            display_species_id = self.__species_idmap.get(x[species_id_idx])
             if display_species_id is None:
                 continue
             pattr = self.__pattrs.get(display_species_id)
@@ -483,11 +489,8 @@ class Renderer(object):
             pattr = self.settings.pfilter_func(x, display_species_id, pattr)
             if pattr is not None:
                 sphere = vtk.vtkSphereSource()
-                sphere.SetRadius(pattr['radius'] / self.__world_size)
-                position = x['position']
-                sphere.SetCenter(position[0] / self.__world_size,
-                                 position[1] / self.__world_size,
-                                 position[2] / self.__world_size)
+                sphere.SetRadius(scaling * pattr['radius'] / self.__world_size)
+                sphere.SetCenter(scaling * x[position_idx] / self.__world_size)
 
                 mapper = vtk.vtkPolyDataMapper()
                 mapper.SetInput(sphere.GetOutput())
@@ -502,6 +505,8 @@ class Renderer(object):
     def __render_blurry_particles(self, particles_dataset):
         particles_per_species = dict((k, vtk.vtkPoints()) for k in self.__species_idmap.iterkeys())
 
+        scaling = self.settings.scaling
+
         position_idx = particles_dataset.dtype.names.index('position')
         species_id_idx = particles_dataset.dtype.names.index('species_id')
         for p in particles_dataset:
@@ -510,7 +515,7 @@ class Renderer(object):
             if display_species_id is None:
                 continue
             particles_per_species[display_species_id].InsertNextPoint(
-                pos / self.__world_size)
+                pos * scaling / self.__world_size)
 
         nx = ny = nz = self.settings.fluorimetry_axial_voxel_number
 
@@ -522,7 +527,7 @@ class Renderer(object):
             pattr = self.__pattrs[display_species_id]
             # Calc standard deviation of gauss distribution function
             wave_length = pattr['fluorimetry_wave_length']
-            sigma = 0.5 * wave_length / self.__world_size
+            sigma = scaling * 0.5 * wave_length / self.__world_size
 
             # Create guassian splatter
             gs = vtk.vtkGaussianSplatter()
@@ -531,9 +536,7 @@ class Renderer(object):
             gs.SetRadius(sigma)
             gs.SetExponentFactor(-.5)
             gs.ScalarWarpingOff()
-            gs.SetModelBounds(-sigma, 1. + sigma,
-                              -sigma, 1. + sigma,
-                              -sigma, 1. + sigma)
+            gs.SetModelBounds([-sigma, scaling + sigma] * 3)
             gs.SetAccumulationModeToMax()
 
             # Create filter for volume rendering
@@ -545,8 +548,6 @@ class Renderer(object):
             filter.SetInputConnection(gs.GetOutputPort())
 
             mapper = vtk.vtkFixedPointVolumeRayCastMapper()
-            #mapper = vtk.vtkVolumeTextureMapper3D()
-            #mapper = vtk.vtkVolumeTextureMapper2D()
             mapper.SetInputConnection(filter.GetOutputPort())
 
             volume = vtk.vtkVolume()
