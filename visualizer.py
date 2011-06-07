@@ -674,12 +674,12 @@ class Renderer(object):
 class Visualizer(object):
     "Visualization class of e-cell simulator"
 
-    def __init__(self, hdf5_file_path_list, image_file_dir='.', movie_filename='movie.mp4', cleanup_image_file_dir=False, settings=Settings()):
+    def __init__(self, hdf5_file_path_list, image_file_dir=None, movie_filename='movie.mp4', cleanup_image_file_dir=False, settings=Settings()):
         assert isinstance(settings, Settings)
 
         self.settings = settings
 
-        if image_file_dir is not None:
+        if image_file_dir is None:
             image_file_dir = tempfile.mkdtemp(dir=os.getcwd())
             cleanup_image_file_dir = True
 
@@ -823,7 +823,7 @@ class Visualizer(object):
             self.render(*entry[1:])
             self.save_rendered(image_file_name)
             snapshot_file_list.append(image_file_name)
-        time_count += 1
+            time_count += 1
 
         return snapshot_file_list
 
