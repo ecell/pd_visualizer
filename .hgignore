@@ -1,6 +1,0 @@
-syntax: glob
-.*
-*.pyc
-*.mp4
-*.hdf5
-images
