@@ -61,7 +61,9 @@ def output_movie_sample():
     
     lset.set_species_legend(width=0.2)
     lset.set_time_legend(width=0.1)
-    lvis=LatticeVisualizer(['./hdf5_lattice/visualLog.h5'],
+    # visualLog.h5 is no longer avairable
+    #lvis=LatticeVisualizer(['./hdf5_lattice/visualLog.h5'],
+    lvis=LatticeVisualizer(['./hdf5_lattice/test_model.h5'],
         image_file_dir='my_image', 
         movie_filename='lattice.mp4',settings=lset)
     
@@ -72,8 +74,8 @@ def output_movie_sample():
 
 
 if __name__ == "__main__":
-    output_frames_sample()
-#    output_frames_sample2()
+#    output_frames_sample()
+    output_frames_sample2()
 #    output_movie_sample()
 
     
