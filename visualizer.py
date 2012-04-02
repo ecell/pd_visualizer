@@ -682,7 +682,7 @@ class Visualizer(object):
         # Set FFMPEG options
         options = self.settings.ffmpeg_additional_options \
             + ' -r '+ str(self.settings.ffmpeg_movie_fps) \
-            + ' -y -i "' + input_image_filename + '" ' \
+            + ' -y -i "' + input_image_filename + '" -vcodec rawvideo -pix_fmt yuv420p ' \
             + self._movie_filename
 
         os.system(self.settings.ffmpeg_bin_path + ' ' + options)
