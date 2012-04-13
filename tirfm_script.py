@@ -13,18 +13,12 @@ def create_image() :
     # create TIRF Microscopy
     tirfm = createTIRFM()
 
-    tirfm.set_LASER(laser='Compass315M-100')
-    #tirfm.set_NDFilter(nd_filter)
-    #tirfm.set_WavePlate(wplate)
-    #tirfm.set_BeamExpander(be)
-    tirfm.set_Mirror(position=0.5)
-    #tirfm.set_Lens(lens)
-    #tirfm.set_Shutter(shutter)
-    #tirfm.set_DichroicMirror(dmirror)
-    tirfm.set_Objective(obj='OlympusPlanApoNA1.45')
-    #tirfm.set_BPFilter(bp_filter)
-    #tirfm.set_FocusingOptics(fo)
-    #tirfm.set_ImageIntensifier(ii)
+    tirfm.set_Beam()
+    tirfm.set_Objective()
+    tirfm.set_DichroicMirror()
+    tirfm.set_BPFilter()
+    #tirfm.set_FocusingOptics()
+    tirfm.set_ImageIntensifier()
 
     # --------- currently independent ---------------------------------------
 
@@ -42,7 +36,7 @@ def create_image() :
 				image_file_dir='my_image',
 				movie_filename='test_model.avi',
 				settings=ccd)
-    
+
     # 0 : naked image
     # 1 : filtered image
     #image.output_frames(1)

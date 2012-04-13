@@ -3,15 +3,9 @@
 
     Default settings for TIRF Microscope
 
-	LASER
-	Neutral Density Filer
-	Quarter Wave Plate
-	Beam Expander
-	Movable Mirror
-	Focusing Lens
-	Shutter
-	Dichroic Mirror
+	Incident Beam Condition
 	Objective
+        Dichroic Mirror
 	Band Pass Filter
 	Focusing Optics
 	Image Intensifier
@@ -19,61 +13,46 @@
 """
 
 #-----------------------------
-# LASER settings
+# settings for Initial Condition
 #-----------------------------        
-laser_attr = {
-    'Compass315M-100':{
-	'wlength':532., # nm
-	'power':100.,   # mW
-	'radius':0.32,  # mm
-	'rms':0.25,     # %
-	},
-    'Compass315M-150':{
-        'wlength':532., # nm
-        'power':150.,   # mW
-        'radius':0.34,  # mm
-        'rms':0.25,     # %
-        }
-}
+beam_wlength  = 532.  # nm
+beam_power    = 100.  # mW
+beam_radius   = 0.32  # mm
+beam_intensity = None # mW/m^2
 
-laser_intensity = None # mW/m^2
-
-# Neutral Density Filer
-# Quarter Wave Plate
-# Beam Expander
-
-#-----------------------------
-# Movable Mirror 
-#-----------------------------
-mirror_position = 0.0 # epi when the postion is at 0
-
-# Focusing Lens
-# Shutter
-# Dichroic Mirror
+mirror_position  = 0.5 # epi when the postion is at 0
 
 #-----------------------------
 # Objective
 #-----------------------------
-objective_attr = {
-    'OlympusPlanApoNA1.45':{
-	'NA':1.45,
-	'Ng':1.52,
-	'Nm':1.37,
-	'thickness':3.0 # mm
-	},
-    'OlympusPlanApoNA1.40':{
-        'NA':1.40,
-        'Ng':1.52,
-        'Nm':1.37,
-        'thickness':3.0 # mm
-        }
-}
-
+obj_NA = 1.45
+obj_Ng = 1.52
+obj_Nm = 1.37
 obj_sin_alpha    = None
 obj_sin_critical = None
 obj_depth = 200 # nm
 
+plate_thickness = 3.0 # mm
+
+#-----------------------------
+# Dichroic Mirror
+#-----------------------------
+dicroic_range = (570, 950) # nm
+dicroic_efficiency = 90.0  # %
+
+#-----------------------------
 # Band Pass Filter
+#-----------------------------
+bpfilter_range = (570, 610) # nm
+bpfilter_efficiency = 93.0  # %
+
+#-----------------------------
 # Focusing Optics
+#-----------------------------
+
+#-----------------------------
 # Image Intensifier
+#-----------------------------
+intensifier_range = (400, 600) # nm
+intensifier_QE    = 50.0  # %
 
