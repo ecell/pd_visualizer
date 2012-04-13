@@ -13,18 +13,18 @@ def create_image() :
     # create TIRF Microscopy
     tirfm = createTIRFM()
 
-    tirfm.set_Beam()
-    tirfm.set_Objective()
-    tirfm.set_DichroicMirror()
-    tirfm.set_BPFilter()
-    #tirfm.set_FocusingOptics()
-    tirfm.set_ImageIntensifier()
+    tirfm.set_Beam(wlength=532, power=100, radius=3.0, position=0.7)
+    tirfm.set_Objective(NA=1.45, Nm=1.33)
+    tirfm.set_DichroicMirror(wl_range=(450, 550), efficiency=0.93)
+    tirfm.set_BPFilter(wl_range=(450, 550), efficiency=0.90)
+    tirfm.set_FocusingOptics(wl_range=(350, 750), efficiency=0.9987)
+    tirfm.set_ImageIntensifier(wl_range=(450, 550), QE=0.50)
 
     # --------- currently independent ---------------------------------------
 
     # CCD camera setting
     ccd = LatticeSettings()
-    #lset.set_image(height=640, width=860)
+    #ccd.set_image(height=640, width=860)
     ccd.set_camera(zoom=0.008, focal_point=(1.0, 0.4, 0.5), base_position=(-1.0, 0.4, 0.5))
     #ccd.set_lattice(sphere_resolution=16)
     ccd.set_movie(frame_interval=0.033, exposure_time=0.033, frame_end_time=10)

@@ -129,18 +129,22 @@ class createTIRFM() :
         self._set_data('bpfilter_efficiency', efficiency)
 
 
-    def set_FocusingOptics(self) :
+    def set_FocusingOptics(self, wl_range = None,
+				efficiency = None) :
 
         print '(5) Focusing Optics'
+	
+        self._set_data('focusing_range', wl_range)
+        self._set_data('focusing_efficiency', efficiency)
 
 
     def set_ImageIntensifier(self, wl_range = None,
-                                efficiency = None) :
+                                QE = None) :
 
         print '(6) Image Intensifier'
 
         self._set_data('intensifier_range', wl_range)
-        self._set_data('intensifier_QE', efficiency)
+        self._set_data('intensifier_QE', QE)
 
 
 if __name__ == "__main__": 
@@ -152,7 +156,7 @@ if __name__ == "__main__":
     tirfm.set_Objective()
     tirfm.set_DichroicMirror()
     tirfm.set_BPFilter()
-    #tirfm.set_FocusingOptics()
+    tirfm.set_FocusingOptics()
     tirfm.set_ImageIntensifier()
 
 

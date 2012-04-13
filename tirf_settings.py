@@ -49,6 +49,8 @@ bpfilter_efficiency = 93.0  # %
 #-----------------------------
 # Focusing Optics
 #-----------------------------
+focusing_range = (380, 780)
+focusing_efficiency = 99.87  # %
 
 #-----------------------------
 # Image Intensifier
