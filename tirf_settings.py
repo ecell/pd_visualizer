@@ -13,7 +13,7 @@
 """
 
 #-----------------------------
-# settings for Initial Condition
+# Incident Beam Condition
 #-----------------------------        
 beam_wlength  = 532.  # nm
 beam_power    = 100.  # mW
@@ -38,23 +38,23 @@ plate_thickness = 3.0 # mm
 # Dichroic Mirror
 #-----------------------------
 dicroic_range = (570, 950) # nm
-dicroic_efficiency = 90.0  # %
+dicroic_efficiency = 0.90  # %
 
 #-----------------------------
 # Band Pass Filter
 #-----------------------------
 bpfilter_range = (570, 610) # nm
-bpfilter_efficiency = 93.0  # %
+bpfilter_efficiency = 0.93  # %
 
 #-----------------------------
 # Focusing Optics
 #-----------------------------
-focusing_range = (380, 780)
-focusing_efficiency = 99.87  # %
+focusing_range = (380, 780)  # nm
+focusing_efficiency = 0.9987 # %
 
 #-----------------------------
 # Image Intensifier
 #-----------------------------
 intensifier_range = (400, 600) # nm
-intensifier_QE    = 50.0  # %
+intensifier_QE    = 0.50  # %
 
