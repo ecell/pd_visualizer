@@ -3,14 +3,33 @@
 
     Default settings for TIRF Microscope
 
+	Fluorophore
 	Incident Beam Condition
+	Fluorescence Excitation Filter
 	Objective
         Dichroic Mirror
-	Band Pass Filter
+	Fluorescence Emission Filter
 	Focusing Optics
 	Image Intensifier
 
 """
+
+#-----------------------------
+# Fluorophore
+#-----------------------------
+fluorophore_excitation = []
+fluorophore_emission = []
+
+fluorophore_attr = {
+     'TRITC':{
+        'excitation':547,
+        'emission':572,
+        'weight':444,
+	'quantum_yield':None,
+	'brightness':None,
+	'photostability':None
+        }
+}
 
 #-----------------------------
 # Incident Beam Condition
@@ -23,6 +42,19 @@ beam_intensity = None # mW/m^2
 mirror_position  = 0.5 # epi when the postion is at 0
 
 #-----------------------------
+# Excitation Filter
+#-----------------------------
+excitation_filter = []
+
+excitation_attr = {
+     'FF01-562_40-25':{
+        'center':562,
+        'range':(570, 950),
+        'efficiency':0.93 
+        }       
+}
+
+#-----------------------------
 # Objective
 #-----------------------------
 obj_NA = 1.45
@@ -32,29 +64,45 @@ obj_sin_alpha    = None
 obj_sin_critical = None
 obj_depth = 200 # nm
 
-plate_thickness = 3.0 # mm
+glass_thickness = 3.0 # mm
 
 #-----------------------------
 # Dichroic Mirror
 #-----------------------------
-dicroic_range = (570, 950) # nm
-dicroic_efficiency = 0.90  # %
+diacroic_mirror = []
+
+dichroic_attr = {
+     'FF562-Di03-25x36':{
+	'edge':562,
+	'range':(573, 613)
+	}
+}
 
 #-----------------------------
-# Band Pass Filter
+# Emission Filter
 #-----------------------------
-bpfilter_range = (570, 610) # nm
-bpfilter_efficiency = 0.93  # %
+emission_filter = []
 
+emission_attr = {
+     'FF01-593_40-25':{
+        'center':593,
+        'range':(570, 950),
+        'efficiency':0.93
+	}
+}
+ 
 #-----------------------------
 # Focusing Optics
 #-----------------------------
 focusing_range = (380, 780)  # nm
-focusing_efficiency = 0.9987 # %
+focusing_efficiency = 0.9987
 
 #-----------------------------
 # Image Intensifier
 #-----------------------------
 intensifier_range = (400, 600) # nm
-intensifier_QE    = 0.50  # %
+intensifier_QE    = 0.50
+
+
+
 

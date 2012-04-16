@@ -13,10 +13,12 @@ def create_image() :
     # create TIRF Microscopy
     tirfm = createTIRFM()
 
-    tirfm.set_Beam(wlength=532, power=100, radius=3.0, position=0.7)
+    # Arranging spectrum
+    tirfm.set_Fluorophore(fluorophore='TRITC')
+    tirfm.set_IncidentBeam(wlength=532, power=100, radius=3.0, position=0.7, excitation=None)
     tirfm.set_Objective(NA=1.45, Nm=1.33)
-    tirfm.set_DichroicMirror(wl_range=(450, 550), efficiency=0.93)
-    tirfm.set_BPFilter(wl_range=(450, 550), efficiency=0.90)
+    tirfm.set_DichroicMirror('FF562-Di03-25x36')
+    tirfm.set_EmissionFilter('FF01-593_40-25')
     tirfm.set_FocusingOptics(wl_range=(350, 750), efficiency=0.9987)
     tirfm.set_ImageIntensifier(wl_range=(450, 550), QE=0.50)
 
