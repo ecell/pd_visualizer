@@ -1,7 +1,7 @@
 """
     tirfm_script.py:
 
-    User script sample to create the image from the simulated TIRF microscopy
+    User script to create the image from the simulated TIRF microscopy
 
 """
 

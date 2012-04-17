@@ -6,7 +6,7 @@ tirf_handler.py
 import sys
 import math
 import copy
-import csv
+import numpy
 
 import tirf_settings
 
@@ -50,27 +50,29 @@ class createTIRFM() :
 
         try:
             csvfile = open(filename)
+            lines = csvfile.readlines()
 
-	    i = 0
-	    ex = em = 1e+9
-            for row in csv.reader(csvfile) :
-		if (i < 5) :
-		    print '\t', row
-		    self.fluorophore_header.append(row)
+            header = lines[0:5]
+            data   = lines[5:]
 
+            for i in range(len(header)) :
+                dummy  = header[i].split('\r\n')
+                a_data = dummy[0].split(',')
+                self.fluorophore_header.append(a_data)
+		print '\t', a_data
+
+            for i in range(len(data)) :
+                dummy0 = data[i].split('\r\n')
+                a_data = dummy0[0].split(',')
+	
+		if (len(a_data) == 1 and a_data[0] == 'Excitation') : flag = 0
+		elif (len(a_data) == 1 and a_data[0] == 'Emission') : flag = 1
 		else :
-		    if 'Excitation' in row : ex = i
-		    if 'Emission'   in row : em = i
+		    if (flag == 0) : 
+			self.fluorophore_excitation.append(a_data)
+		    else : 
+			self.fluorophore_emission.append(a_data)
 
-                    if (ex < i and em > i) :
-			self.fluorophore_excitation.append(row)
-
-		    elif (em < i) :
-			self.fluorophore_emission.append(row)
-
-		i += 1
-
-            csvfile.close()
 
         except Exception:
             print 'Error : ', filename, ' is NOT found'
@@ -111,18 +113,21 @@ class createTIRFM() :
 
             try:
             	csvfile = open(filename)
-		i = 0
-		for row in csv.reader(csvfile) :
-		    if (i < 6) :
-			print '\t\t', row
-			self.emission_header.append(row)
+		lines = csvfile.readlines()
 
-		    else :
-			self.emission_filter.append(row)
+		header = lines[0:5]
+		data   = lines[6:]
 
-		    i += 1
+		for i in range(len(header)) :
+		    dummy  = header[i].split('\r\n')
+		    a_data = dummy[0].split(',')
+		    self.dichroic_header.append(a_data)
+		    print '\t', a_data
 
-            	csvfile.close()
+		for i in range(len(data)) :
+		    dummy0 = data[i].split('\r\n')
+		    a_data = dummy0[0].split(',')
+		    self.dichroic_mirror.append(a_data)
 
             except Exception:
             	print 'Error : ', filename, ' is NOT found'
@@ -199,19 +204,22 @@ class createTIRFM() :
 
 	try:
 	    csvfile = open(filename)
+	    lines = csvfile.readlines()
 
-	    i = 0
-	    for row in csv.reader(csvfile) :
-		if (i < 6) :
-		    print '\t', row
-		    self.dichroic_header.append(row)
+	    header = lines[0:5]
+	    data   = lines[6:]
 
-		else :
-		    self.dichroic_mirror.append(row)
+	    for i in range(len(header)) :
+		dummy  = header[i].split('\r\n')
+		a_data = dummy[0].split(',')
+		self.dichroic_header.append(a_data)
+		print '\t', a_data
 
-		i += 1
+	    for i in range(len(data)) :
+		dummy0 = data[i].split('\r\n')
+		a_data = dummy0[0].split(',')
+		self.dichroic_mirror.append(a_data)
 
-	    csvfile.close()
 
         except Exception:
             print 'Error : ', filename, ' is NOT found'
@@ -227,19 +235,22 @@ class createTIRFM() :
 
         try:
             csvfile = open(filename)
+            lines = csvfile.readlines()
 
-            i = 0
-            for row in csv.reader(csvfile) :
-                if (i < 6) :
-                    print '\t', row
-                    self.emission_header.append(row)
+            header = lines[0:5]
+            data   = lines[6:]
 
-                else :
-                    self.emission_filter.append(row)
+            for i in range(len(header)) :
+                dummy  = header[i].split('\r\n')
+                a_data = dummy[0].split(',')
+                self.emission_header.append(a_data)
+		print '\t', a_data
 
-                i += 1
+            for i in range(len(data)) :
+                dummy0 = data[i].split('\r\n')
+                a_data = dummy0[0].split(',')
+                self.emission_filter.append(a_data)
 
-            csvfile.close()
 
         except Exception:
             print 'Error : ', filename, ' is NOT found'
