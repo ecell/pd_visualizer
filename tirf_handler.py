@@ -41,30 +41,36 @@ class createTIRFM() :
 
 
 
-    def set_Fluorophore(self,  fluorophore = None,
+    def set_Fluorophore(self, fluorophore = None,
 				photon_cnts = None) :
 
-	print '(1) Fluorophore'
-        print '\tExcitation wave length -- ', self.fluorophore_attr[fluorophore]['excitation'], ' nm'
-        print '\tEmission   wave length -- ', self.fluorophore_attr[fluorophore]['emission'], ' nm'
-        print '\tMolecular Weight -- ', self.fluorophore_attr[fluorophore]['weight']
-        print '\tquantum_yield    -- ', self.fluorophore_attr[fluorophore]['quantum_yield']
-        print '\tPhotostability   -- ', self.fluorophore_attr[fluorophore]['photostability']
-        print '\n'
+	print '(1) Fluorophore :'
 
-        filename = './fdata/fluorophore/' + fluorophore + '.csv'
+        filename = './catalog/fluorophore/' + fluorophore + '.csv'
 
         try:
             csvfile = open(filename)
-            #print csvfile
 
+	    i = 0
+	    ex = em = 1e+9
             for row in csv.reader(csvfile) :
+		if (i < 5) :
+		    print '\t', row
+		    self.fluorophore_header.append(row)
 
-                self.fluorophore_excitation.append(row)
-                self.fluorophore_emission.append(row)
+		else :
+		    if 'Excitation' in row : ex = i
+		    if 'Emission'   in row : em = i
+
+                    if (ex < i and em > i) :
+			self.fluorophore_excitation.append(row)
+
+		    elif (em < i) :
+			self.fluorophore_emission.append(row)
+
+		i += 1
 
             csvfile.close()
-            #print csvfile
 
         except Exception:
             print 'Error : ', filename, ' is NOT found'
@@ -81,7 +87,7 @@ class createTIRFM() :
 				position = None,
 				excitation = None ) :
 
-	print '(2) Incident Beam Condition'
+	print '(2) Incident Beam Condition :'
 
         self._set_data('beam_wlength', wlength)
         self._set_data('beam_power', power)
@@ -90,27 +96,33 @@ class createTIRFM() :
 
 	self.beam_intensity = self._get_intensity()
 
+	print '\tWave Length = ', self.beam_wlength, ' nm'
+	print '\tBeam Power  = ', self.beam_power, ' mW'
+	print '\tBeam Radius = ', self.beam_radius, ' mm'
+	print '\tMirror Position = ', self.mirror_position
+
 
 	if (excitation == None) : 
-            print '    Excitation Filter OFF'
+            print '\tExcitation Filter OFF'
 	else :
-            print '    Excitation Filter ON'
-            print '\tCental wave length -- ', self.excitation_attr[excitation]['center'], ' nm'
-            print '\tTransmission range -- ', self.excitation_attr[excitation]['range'], ' nm'
-            print '\tTransmission effic -- ', self.excitation_attr[excitation]['efficiency']
-            print '\n'
+            print '\tExcitation Filter ON'
 
-            filename = './fdata/excitation/' + excitation + '.csv'
+            filename = './catalog/excitation/' + excitation + '.csv'
 
             try:
             	csvfile = open(filename)
-            	#print csvfile
+		i = 0
+		for row in csv.reader(csvfile) :
+		    if (i < 6) :
+			print '\t\t', row
+			self.emission_header.append(row)
 
-            	for row in csv.reader(csvfile) :
-                    self.excitation_filter.append(row)
+		    else :
+			self.emission_filter.append(row)
+
+		    i += 1
 
             	csvfile.close()
-            	#print csvfile
 
             except Exception:
             	print 'Error : ', filename, ' is NOT found'
@@ -135,7 +147,7 @@ class createTIRFM() :
 			thickness = None
 			) :
 
-	print '(3) Objective '
+	print '(3) Objective :'
 
         self._set_data('obj_NA', NA)
         self._set_data('obj_Ng', Ng)
@@ -148,6 +160,12 @@ class createTIRFM() :
 	# calculate for penetration depth
 	self.obj_depth = self._get_depth()
 
+	print '\tNA = ', self.obj_NA
+	print '\tNg = ', self.obj_Ng
+	print '\tNm = ', self.obj_Nm
+	print '\tpenetration depth   = ', self.obj_depth, ' nm'
+	print '\tsin(alpha angle)    = ', self.obj_sin_alpha
+	print '\tsin(critical angle) = ', self.obj_sin_critical
 
 
     def _get_angle(self) :
@@ -175,22 +193,25 @@ class createTIRFM() :
 
     def set_DichroicMirror(self, dm = None) :
 
-        print '(4) Dichroic Mirror : ', dm
-	print '\tEdge wave length   -- ', self.dichroic_attr[dm]['edge'], ' nm'
-	print '\tTransmission range -- ', self.dichroic_attr[dm]['range'], ' nm'
-	print '\n'
+        print '(4) Dichroic Mirror :'
 
-	filename = './fdata/dichroic/' + dm + '.csv'
+	filename = './catalog/dichroic/' + dm + '.csv'
 
 	try:
 	    csvfile = open(filename)
-	    #print csvfile
 
+	    i = 0
 	    for row in csv.reader(csvfile) :
-		self.diacroic_mirror.append(row)
+		if (i < 6) :
+		    print '\t', row
+		    self.dichroic_header.append(row)
+
+		else :
+		    self.dichroic_mirror.append(row)
+
+		i += 1
 
 	    csvfile.close()
-	    #print csvfile
 
         except Exception:
             print 'Error : ', filename, ' is NOT found'
@@ -200,23 +221,25 @@ class createTIRFM() :
 
     def set_EmissionFilter(self, emission = None) :
 
-        print '(5) Emission Filter'
-        print '\tCental wave length -- ', self.emission_attr[emission]['center'], ' nm'
-        print '\tTransmission range -- ', self.emission_attr[emission]['range'], ' nm'
-        print '\tTransmission effic -- ', self.emission_attr[emission]['efficiency']
-        print '\n'
+        print '(5) Emission Filter :'
 
-        filename = './fdata/emission/' + emission + '.csv'
+        filename = './catalog/emission/' + emission + '.csv'
 
         try:
             csvfile = open(filename)
-            #print csvfile
 
+            i = 0
             for row in csv.reader(csvfile) :
-                self.emission_filter.append(row)
+                if (i < 6) :
+                    print '\t', row
+                    self.emission_header.append(row)
+
+                else :
+                    self.emission_filter.append(row)
+
+                i += 1
 
             csvfile.close()
-            #print csvfile
 
         except Exception:
             print 'Error : ', filename, ' is NOT found'
@@ -227,7 +250,7 @@ class createTIRFM() :
     def set_FocusingOptics(self, wl_range = None,
 				efficiency = None) :
 
-        print '(6) Focusing Optics'
+        print '(6) Focusing Optics :'
 	
         self._set_data('focusing_range', wl_range)
         self._set_data('focusing_efficiency', efficiency)
@@ -236,7 +259,7 @@ class createTIRFM() :
     def set_ImageIntensifier(self, wl_range = None,
                                 QE = None) :
 
-        print '(7) Image Intensifier'
+        print '(7) Image Intensifier : Optional'
 
         self._set_data('intensifier_range', wl_range)
         self._set_data('intensifier_QE', QE)

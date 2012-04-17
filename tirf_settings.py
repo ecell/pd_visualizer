@@ -17,19 +17,11 @@
 #-----------------------------
 # Fluorophore
 #-----------------------------
+fluorophore_header = []
 fluorophore_excitation = []
 fluorophore_emission = []
 
-fluorophore_attr = {
-     'TRITC':{
-        'excitation':547,
-        'emission':572,
-        'weight':444,
-	'quantum_yield':None,
-	'brightness':None,
-	'photostability':None
-        }
-}
+fluorophore_attr = {}
 
 #-----------------------------
 # Incident Beam Condition
@@ -44,15 +36,10 @@ mirror_position  = 0.5 # epi when the postion is at 0
 #-----------------------------
 # Excitation Filter
 #-----------------------------
+excitation_header = []
 excitation_filter = []
 
-excitation_attr = {
-     'FF01-562_40-25':{
-        'center':562,
-        'range':(570, 950),
-        'efficiency':0.93 
-        }       
-}
+excitation_attr = {}
 
 #-----------------------------
 # Objective
@@ -69,27 +56,18 @@ glass_thickness = 3.0 # mm
 #-----------------------------
 # Dichroic Mirror
 #-----------------------------
-diacroic_mirror = []
+dichroic_header = []
+dichroic_mirror = []
 
-dichroic_attr = {
-     'FF562-Di03-25x36':{
-	'edge':562,
-	'range':(573, 613)
-	}
-}
+dichroic_attr = {}
 
 #-----------------------------
 # Emission Filter
 #-----------------------------
+emission_header = []
 emission_filter = []
 
-emission_attr = {
-     'FF01-593_40-25':{
-        'center':593,
-        'range':(570, 950),
-        'efficiency':0.93
-	}
-}
+emission_attr = {}
  
 #-----------------------------
 # Focusing Optics

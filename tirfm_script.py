@@ -14,7 +14,7 @@ def create_image() :
     tirfm = createTIRFM()
 
     # Arranging spectrum
-    tirfm.set_Fluorophore(fluorophore='TRITC')
+    tirfm.set_Fluorophore(fluorophore='Tetramethylrhodamine(TRITC)')
     tirfm.set_IncidentBeam(wlength=532, power=100, radius=3.0, position=0.7, excitation=None)
     tirfm.set_Objective(NA=1.45, Nm=1.33)
     tirfm.set_DichroicMirror('FF562-Di03-25x36')
