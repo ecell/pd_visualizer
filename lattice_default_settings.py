@@ -9,12 +9,6 @@
 from rgb_colors import *
 
 
-#-----------------------------
-# lattice setting
-#-----------------------------
-lattice_sphere_resolution=16
-
-
 #=====================================================
 # default setting over write
 #=====================================================
@@ -26,8 +20,6 @@ image_background_color = RGB_BLACK
 #-----------------------------
 # Camera settings
 #-----------------------------
-# Zoom Zoom-in > 1.0 > Zoom-out
-camera_zoom = 0.25
 
 # Set Projection, Perspective=False or Parallel=True
 camera_parallel_projection = True

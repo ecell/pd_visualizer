@@ -3,11 +3,10 @@ lattice_handler.py
     
 
 """
-import sys
 import math
 
 # INT64_MAX : 64bit C++ INT_MAX
-#INT64_MAX=2147483647
+INT64_MAX=2147483647
 
 LATTICE_BASE='base'
 LATTICE_HCP='HCP_group'
@@ -17,41 +16,53 @@ LATTICE_SIMPLE='Simple_group'
 class LatticeBase(object):
     
     def __init__(self):
-        self.lattice_type = LATTICE_BASE
-        self.lattice_schema = []
-        self.particles_schema = []
-        self.lattice_id=0
-        self.world_size=0.0
-        self.theNormalizedVoxelRadius=0.5
+        self._lattice_type = LATTICE_BASE
+        self._lattice_schema = []
+        self._particles_schema = []
+        self._lattice_id=0
+        self._scalings=0.0
+        self._world_size=0.0
+        self._voxelRadius=0.0 #1.0e-10
+        self._theNormalizedVoxelRadius=0.0 #0.5
     
     
     def get_lattice_type(self):
-        return self.lattice_type
+        return self._lattice_type
     
     def get_lattice_schema(self):
-        return self.lattice_schema
+        return self._lattice_schema
     
     def get_partilce_schema(self):
-        return self.particles_schema
+        return self._particles_schema
     
     def get_lattice_id(self):
-        return self.lattice_id
+        return self._lattice_id
     
     def get_scalings(self):
-        return self.scalings
+        return self._scalings
     
     def get_world_sizes(self):
-        return self.world_sizes
+        return self._world_sizes
+    
+    def get_voxel_radius(self):
+        return self._voxelRadius
     
     def get_normalized_radius(self):
-        return self.theNormalizedVoxelRadius
+        return self._theNormalizedVoxelRadius
     
     def get_theStartCoord(self):
-        return self.theStartCoord
+        return self._theStartCoord
     
     def load_schema_value(self,schema_val):
         self._set_schema_value(schema_val)
         self._set_lattice_propeties()
+        
+    def get_length_ratio(self):
+        """
+        ratio of real-length to visualize-length  
+        """
+        #return self._voxelRadius/self._theNormalizedVoxelRadius
+        return self._theNormalizedVoxelRadius/self._voxelRadius
     
     def _set_schema_value(self, schema_val):
         print 'need to override _set_schema_value()'
@@ -71,74 +82,61 @@ class LatticeBase(object):
 class HCPLattice(LatticeBase):
     
     def __init__(self):
-        self.lattice_type=LATTICE_HCP
+        self._lattice_type=LATTICE_HCP
 
-        self.lattice_schema = \
+        self._lattice_schema = \
             [
               ('lattice_id','u8'),
               ('lengths', 'f8', (3,)),
               ('voxelRadius','f8',),
-              ('theNormalizedVoxelRadius','f8'),
-              ('startCoord','f8'),
-              ('layerSize','f8'),
-              ('rowSize','f8'),
-              ('colSize','f8')
+              ('theNormalizedVoxelRadius','f8')
              ]
         
-        self.particles_schema = \
+        self._particles_schema = \
             [
              ('id','u8'),
              ('species_id','u8'),
              ('lattice_id','u8')
              ]
 
-#        self.particles_schema = \
-#            [
-#             ('lattice_id','u8'),
-#             ('id','u8'),
-#             ('species_id','u8')
-#             ]
-
     def _set_schema_value(self, schema_val):
-        self.lattice_id, \
-        self.lengths, \
-        self.voxelRadius, \
-        self.theNormalizedVoxelRadius, \
-        self.startCoord, \
-        self.layerSize, \
-        self.rowSize, \
-        self.colSize = schema_val
+        self._lattice_id, \
+        self._lengths, \
+        self._voxelRadius, \
+        self._theNormalizedVoxelRadius = schema_val
     
     def _set_lattice_propeties(self):
-        self.theHCPk = self.theNormalizedVoxelRadius/math.sqrt(3.0)
-        self.theHCPh = self.theNormalizedVoxelRadius*math.sqrt(8.0/3.0)
-        self.theHCPl = self.theNormalizedVoxelRadius*math.sqrt(3.0)
+        self._theHCPk = self._theNormalizedVoxelRadius/math.sqrt(3.0)
+        self._theHCPh = self._theNormalizedVoxelRadius*math.sqrt(8.0/3.0)
+        self._theHCPl = self._theNormalizedVoxelRadius*math.sqrt(3.0)
         
-        cenpz = self.lengths[2]/2.0 + 4.0*self.theNormalizedVoxelRadius
-        cenpy = self.lengths[1]/2.0 + 2.0*self.theHCPl
-        cenpx = self.lengths[0]/2.0 + 2.0*self.theHCPh
-        self.theConterPoint=(cenpx, cenpy, cenpz)
+        cenpz = self._lengths[2]/2.0 + 4.0*self._theNormalizedVoxelRadius
+        cenpy = self._lengths[1]/2.0 + 2.0*self._theHCPl
+        cenpx = self._lengths[0]/2.0 + 2.0*self._theHCPh
+        self._theConterPoint=(cenpx, cenpy, cenpz)
         
-        #self.theRowSize = int(cenpz/self.theNormalizedVoxelRadius)
-        #self.theLayerSize = int(cenpy*2.0/self.theHCPl)
-        #self.theColSize = int(cenpx*2.0/self.theHCPh)
+        self._theRowSize = int(cenpz/self._theNormalizedVoxelRadius)
+        self._theLayerSize = int(cenpy*2.0/self._theHCPl)
+        self._theColSize = int(cenpx*2.0/self._theHCPh)
         
         # init theStartCoord
-        #self.theStartCoord = INT64_MAX
-        #r_mul_l=self.theRowSize*self.theLayerSize
-        #self.theStartCoord -= \
-        #    self.theStartCoord%(r_mul_l*(self.theStartCoord/r_mul_l))
+        self._theStartCoord = INT64_MAX
+        r_mul_l=self._theRowSize*self._theLayerSize
+        if self._theStartCoord!=0:
+            self._theStartCoord -= \
+                self._theStartCoord%(r_mul_l*(self._theStartCoord/r_mul_l))
         
-        #print 'theStartCoord =', self.theStartCoord
-        print 'theStartCoord =', self.startCoord
+        print 'theStartCoord =', self._theStartCoord
         
         #calculate scale and world size        
-	#self.scalings = (self.theColSize, self.theLayerSize, self.theRowSize)
-        self.scalings = (self.colSize, self.layerSize, self.rowSize)
-        self.world_sizes = (
-            self.colSize*2.0*self.voxelRadius,
-            self.layerSize*2.0*self.voxelRadius,
-            self.rowSize*2.0*self.voxelRadius)
+        self._scalings = (
+            self._theColSize*2.0*self._theNormalizedVoxelRadius,
+            self._theLayerSize*2.0*self._theNormalizedVoxelRadius,
+            self._theRowSize*2.0*self._theNormalizedVoxelRadius)
+        self._world_sizes = (
+            self._theColSize*2.0*self._voxelRadius,
+            self._theLayerSize*2.0*self._voxelRadius,
+            self._theRowSize*2.0*self._voxelRadius)
         
     
     def coord2point(self,aCoord):
@@ -147,64 +145,62 @@ class HCPLattice(LatticeBase):
         """
         aGlobalCol, aGlobalLayer, aGlobalRow=self.coord2global(aCoord)
         
-        point_y=(aGlobalCol%2)*self.theHCPk + self.theHCPl*aGlobalLayer;
-        point_z = aGlobalRow*2*self.theNormalizedVoxelRadius \
-               + ((aGlobalLayer+aGlobalCol)%2)*self.theNormalizedVoxelRadius;
-        point_x = aGlobalCol*self.theHCPh;
+        point_y=(aGlobalCol%2)*self._theHCPk + self._theHCPl*aGlobalLayer;
+        point_z = aGlobalRow*2*self._theNormalizedVoxelRadius \
+               + ((aGlobalLayer+aGlobalCol)%2)*self._theNormalizedVoxelRadius;
+        point_x = aGlobalCol*self._theHCPh;
         return (point_x, point_y, point_z)
 
 
     def coord2global(self,aCoord):
 #        print 'aCoord=',aCoord,' index=',aCoord-self.theStartCoord # for debug
-#        aGlobalCol = (aCoord-self.theStartCoord)/(self.theRowSize*self.theLayerSize) ;
-#        aGlobalLayer = ((aCoord-self.theStartCoord)%(self.theRowSize*self.theLayerSize))/self.theRowSize;
-#        aGlobalRow = ((aCoord-self.theStartCoord)%(self.theRowSize*self.theLayerSize))%self.theRowSize;
-
-        aGlobalCol = (aCoord-self.startCoord)/(self.rowSize*self.layerSize) ;
-        aGlobalLayer = ((aCoord-self.startCoord)%(self.rowSize*self.layerSize))/self.rowSize;
-        aGlobalRow = ((aCoord-self.startCoord)%(self.rowSize*self.layerSize))%self.rowSize;
-
+        aGlobalCol = int ( (aCoord-self._theStartCoord) \
+                /(self._theRowSize*self._theLayerSize) );
+        aGlobalLayer = int( ((aCoord-self._theStartCoord) \
+                %(self._theRowSize*self._theLayerSize))/self._theRowSize );
+        aGlobalRow = int( ((aCoord-self._theStartCoord) \
+                %(self._theRowSize*self._theLayerSize))%self._theRowSize );
         return (aGlobalCol, aGlobalLayer, aGlobalRow)
 
 
     
-#class SimpleLattice(LatticeBase):
-#    
-#    def __init__(self):
-#        self.lattice_type = LATTICE_SIMPLE
-#        self.lattice_schema = \
-#            [
-#              ('lattice_id','u8'),
-#              ('lengths', 'f8', (3,)),
-#              ('voxelRadius','f8',),
-#              ('theNormalizedVoxelRadius','f8')
-#             ]
-#        
-#
-#    def _set_schema_value(self,schema_val):
-#        self.lattice_id, \
-#        self.lengths, \
-#        self.voxelRadius, \
-#        self.theNormalizedVoxelRadius = schema_val
-#
-#
-#    def _set_lattice_propeties(self):
-#        cenpz = self.lengths[2]/2.0
-#        cenpy = self.lengths[1]/2.0
-#        cenpx = self.lengths[0]/2.0
-#        self.theConterPoint=(cenpx, cenpy, cenpz)
-#        
-#        self.theRowSize = int(cenpz/self.theNormalizedVoxelRadius)
-#        self.theLayerSize = int(cenpy/self.theNormalizedVoxelRadius)
-#        self.theColSize = int(cenpx/self.theNormalizedVoxelRadius)
-#        
-#        #calculate scale and world size
-#        self.scalings = (
-#            self.theColSize, self.theLayerSize, self.theRowSize)
-#        self.world_sizes = (
-#            self.theColSize*2.0*self.voxelRadius,
-#            self.theLayerSize*2.0*self.voxelRadius,
-#            self.theRowSize*2.0*self.voxelRadius)
+class SimpleLattice(LatticeBase):
+    
+    def __init__(self):
+        self._lattice_type = LATTICE_SIMPLE
+        self._lattice_schema = \
+            [
+              ('lattice_id','u8'),
+              ('lengths', 'f8', (3,)),
+              ('voxelRadius','f8',),
+              ('theNormalizedVoxelRadius','f8')
+             ]
+        
+
+    def _set_schema_value(self,schema_val):
+        self._lattice_id, \
+        self._lengths, \
+        self._voxelRadius, \
+        self._theNormalizedVoxelRadius = schema_val
+
+
+    def _set_lattice_propeties(self):
+        cenpz = self._lengths[2]/2.0
+        cenpy = self._lengths[1]/2.0
+        cenpx = self._lengths[0]/2.0
+        self._theConterPoint=(cenpx, cenpy, cenpz)
+        
+        self._theRowSize = int(cenpz/self._theNormalizedVoxelRadius)
+        self._theLayerSize = int(cenpy/self._theNormalizedVoxelRadius)
+        self._theColSize = int(cenpx/self._theNormalizedVoxelRadius)
+        
+        #calculate scale and world size
+        self._scalings = (
+            self._theColSize, self._theLayerSize, self._theRowSize)
+        self._world_sizes = (
+            self._theColSize*2.0*self._voxelRadius,
+            self._theLayerSize*2.0*self._voxelRadius,
+            self._theRowSize*2.0*self._voxelRadius)
         
 
 

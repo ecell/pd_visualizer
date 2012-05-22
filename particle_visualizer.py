@@ -1,5 +1,8 @@
-import os
+
 import sys
+import os
+import copy
+
 import tempfile
 import time
 
@@ -7,16 +10,17 @@ import h5py
 import vtk
 import numpy
 
-import domain_kind_constants
-import rgb_colors
 import default_settings
-import copy
-
 import particle_default_settings
+import rgb_colors
+import domain_kind_constants
 
+
+from frame_handler import PARTICLE_SPACE
 from visualizer import VisualizerError, \
     Settings, Renderer, Visualizer
-from frame_handler import PARTICLE_SPACE
+from fluori2d_drawer import gauss_func
+
 
 class ParticleSettings(Settings):
     "Visualization setting class for ParticleVisualizer"
@@ -26,6 +30,8 @@ class ParticleSettings(Settings):
         settings_dict = default_settings.__dict__.copy()
         settings_dict_lattice = particle_default_settings.__dict__.copy()
         settings_dict.update(settings_dict_lattice)
+        
+        self.fluori2d_psf_func=gauss_func
         
         # user setting
         if user_settings_dict is not None:
@@ -43,38 +49,31 @@ class ParticleSettings(Settings):
                 setattr(self, key, copy_val)
 
 
-    def set_fluorimetry(self,
-                         display = None,
+    def set_fluori3d(self,
                          axial_voxel_number = None,
                          background_color = None,
                          shadow_display = None,
                          accumulation_mode = None,
                          ):
-        self._set_data('fluorimetry_display', display)
         self._set_data('fluorimetry_axial_voxel_number', axial_voxel_number)
         self._set_data('fluorimetry_background_color', background_color)
         self._set_data('fluorimetry_shadow_display', shadow_display)
         self._set_data('fluorimetry_accumulation_mode', accumulation_mode)
         
-    def pfilter_func_direct(self, particle, display_species_id, pattr):
-        return pattr
     
-    def pfilter_func(self, particle, display_species_id, pattr):
-        return pattr
-
-    def pfilter_sid_map_func(self, species_id):
-        return species_id
-
-    def pfilter_sid_to_pattr_func(self, display_species_id):
-        return self.particle_attrs.get(display_species_id,
-                                       self.default_particle_attr)
         
 class ParticleRenderer(Renderer):
     def __init__(self, settings, species_list, world_size):
         assert  isinstance(settings, ParticleSettings)
         assert world_size is not None
         self.settings = settings
+        
+        # set size
         self._world_size = world_size
+        self.settings.world_size=world_size
+        self.settings.length_ratio = \
+            self.settings.scaling/self._world_size
+            
 
         self._build_particle_attrs(species_list)
         self._build_domain_attrs()
@@ -279,90 +278,68 @@ class ParticleRenderer(Renderer):
 
                 self.renderer.AddActor(sphere_actor)
  
-    def _render_particles_direct(self, particles_dataset):
-        # Data transfer from HDF5 dataset to numpy array for fast access
-        scaling = self.settings.scaling
-        species_id_idx = particles_dataset.dtype.names.index('species_id')
-        position_idx = particles_dataset.dtype.names.index('position')
 
-        for x in particles_dataset:
-            display_species_id = self._species_idmap.get(x[species_id_idx])
-            if display_species_id is None:
-                continue
-            pattr = self._pattrs.get(display_species_id)
-            if pattr is None:
-                continue
-            pattr = self.settings.pfilter_func_direct(x, display_species_id, pattr)
-            if pattr is not None:
-                sphere = vtk.vtkSphereSource()
-                sphere.SetRadius(scaling * pattr['radius'] / self._world_size)
-                sphere.SetCenter(scaling * x[position_idx] / self._world_size)
+    def _felem_to_plist(self, felem, strength=None):
+        ratio=self.settings.length_ratio
+        particle_list=[]
+        
+        if felem.get_particles() is None: return particle_list
+        for part in felem.get_particles():
+            # get color from attribute by species_id 
+            species_id = part.get_species_id()
+            if species_id is None: continue
+            
+            pattr = self._pattrs.get(species_id)
+            pattr = self.settings.pfilter_func(part, species_id, pattr)
+            if pattr is None: continue
 
-                mapper = vtk.vtkPolyDataMapper()
-                mapper.SetInput(sphere.GetOutput())
-
-                sphere_actor = vtk.vtkActor()
-                sphere_actor.SetMapper(mapper)
-                sphere_actor.GetProperty().SetColor(pattr['color'])
-                sphere_actor.GetProperty().SetOpacity(pattr['opacity'])
-
-                self.renderer.AddActor(sphere_actor)
-
-    
-    def render_with_domain(self, t, particles_dataset, shells_dataset=None,
-               domain_shell_assoc=None, domains_dataset=None):
-        self._reset_actors()
-        if self._time_legend is not None:
-            self._time_legend.SetEntryString(0,
-                self.settings.time_legend_format % t)
-
-        if self.settings.fluorimetry_display:
-            self._render_blurry_particles(particles_dataset)
-        else:
-            if self.settings.render_particles:
-                self._render_particles_direct(particles_dataset)
-
-            if self.settings.render_shells and shells_dataset is not None:
-                self._render_shells(shells_dataset,
-                                     domain_shell_assoc, domains_dataset)
-
-
-    def _render_particles(self, particle_draw_list):
-        scaling = self.settings.scaling
-        for part in particle_draw_list:
-            display_species_id = part.species_id
-            if display_species_id is None:
-                continue
-            pattr = self._pattrs.get(display_species_id)
-            if pattr is None:
-                continue
-            pattr = self.settings.pfilter_func(part, display_species_id, pattr)
-            if pattr is not None:
-                sphere = vtk.vtkSphereSource()
-                sphere.SetRadius(scaling * pattr['radius'] / self._world_size)
-                sphere.SetCenter(scaling * part.positions / self._world_size)
-
-                mapper = vtk.vtkPolyDataMapper()
-                mapper.SetInput(sphere.GetOutput())
-
-                sphere_actor = vtk.vtkActor()
-                sphere_actor.SetMapper(mapper)
-                sphere_actor.GetProperty().SetColor(pattr['color'])
-                sphere_actor.GetProperty().SetOpacity(pattr['opacity'])
-
-                self.renderer.AddActor(sphere_actor)
+            # set radius
+            part.set_radius(pattr['radius']*ratio)
+            
+            # transfer coordinate scale to draw
+            pos=part.get_positions()
+            part.set_positions(pos*ratio)
+            
+            # get color from attribute by species_id 
+            part.set_color(pattr['color'])
+        
+            # opacity is 1.0 for snapshot
+            part.set_strength(pattr['opacity']*1.0)
                 
- 
-    def _get_snapshot_list(self, frame_data):
-        particle_draw_list=[]
+            particle_list.append(part)
         
-        felem=frame_data.get_last_data()
-        if felem.get_particles() is None: return particle_draw_list
-        for particle in felem.get_particles():
-            particle_draw_list.append(particle)
-        
-        return particle_draw_list
+        return particle_list
 
+
+    def _read_and_render_shells(self, felem):
+        try:
+            file=felem.get_sfile_path()
+            if file is not None:
+                hdf5_file = h5py.File(file, 'r')
+                data_group = hdf5_file['data']
+                time_group = data_group[felem.get_sgroup_name()]
+                
+                shells_dataset = time_group['shells']
+                domain_shell_assoc = time_group['domain_shell_association']
+                domains_dataset = time_group['domains']
+                self._render_shells(
+                    shells_dataset, domain_shell_assoc, domains_dataset)
+        finally:
+            if file is not None:
+                hdf5_file.close()
+         
+    def _read_and_render_fluori3d(self, felem):
+        try:
+            file=felem.get_pfile_path()
+            hdf5_file = h5py.File(file, 'r')
+            data_group = hdf5_file['data']
+            time_group = data_group[felem.get_pgroup_name()]
+            
+            particles_dataset = time_group['particles']
+            self._render_blurry_particles(particles_dataset)
+        finally:
+            hdf5_file.close()
+   
 
     def render_snapshot(self, frame_data):
         self._reset_actors()
@@ -372,9 +349,27 @@ class ParticleRenderer(Renderer):
             self._time_legend.SetEntryString(0,
                 self.settings.time_legend_format % t)
 
-        particle_draw_list=self._get_snapshot_list(frame_data)
-        self._render_particles(particle_draw_list)
+        # render particle
+        particle_list=self._get_snapshot_list(frame_data)
+        self._render_particle_list(particle_list)
+        
+        # draw shell and domain
+        last_data=frame_data.get_last_data();
+        self._read_and_render_shells(last_data)
 
+    
+    def render_fluori3d(self, frame_data):
+        self._reset_actors()
+
+        t=frame_data.get_last_data_time()
+        if self._time_legend is not None:
+            self._time_legend.SetEntryString(0,
+                self.settings.time_legend_format % t)
+        
+        # draw fluori3d
+        last_data=frame_data.get_last_data();
+        self._read_and_render_fluori3d(last_data)
+        
 
 
 class ParticleVisualizer(Visualizer):
@@ -394,16 +389,18 @@ class ParticleVisualizer(Visualizer):
         self._cleanup_image_file_dir = cleanup_image_file_dir
         self._movie_filename = movie_filename
         
-        # read hdf5 file
-        species_list, particles_time_seq, particles_shells_time_seq, \
+        # read hdf5 file        
+        species_list, particles_time_seq, shells_time_seq, \
             world_size = self._read_hdf5_data(hdf5_file_path_list)
         self._world_size = world_size
-        self.particles_shells_time_seq = particles_shells_time_seq
         
         # create frame data
-        particles_frames= \
-            self._create_frame_datas(particles_time_seq, PARTICLE_SPACE)
-        self.particles_frames = particles_frames
+        self.frame_datas = \
+            self._create_frame_datas(PARTICLE_SPACE, \
+                particles_time_seq, shells_time_seq)
+        self.frame_datas_as = \
+            self._create_frame_datas_as(PARTICLE_SPACE, \
+                particles_time_seq, shells_time_seq)
         
         # create renderer and window
         self._renderer = ParticleRenderer(
@@ -432,6 +429,7 @@ class ParticleVisualizer(Visualizer):
                 for time_group_name in data_group:
                     time_group = data_group[time_group_name]
                     elem = [time_group.attrs['t'], hdf5_file_path, time_group_name]
+                    tgkeys = time_group.keys()
                     if 'particles' in time_group.keys():
                         particles_time_seq.append(elem)
                     if 'shells' in time_group.keys():
@@ -467,105 +465,23 @@ class ParticleVisualizer(Visualizer):
         particles_time_seq.sort(lambda a, b:cmp(a[0], b[0]))
         # Sort descending time order
         shells_time_seq.sort(lambda a, b:cmp(a[0], b[0]))
-
-        idx = 0
-        particles_shells_time_seq = []
-        for pentry in particles_time_seq:
-            while idx < len(shells_time_seq) \
-                and shells_time_seq[idx][0] <= pentry[0]:
-                idx += 1
-            idx -= 1
-            if idx < 0:
-                idx = 0
-                sentry = (None, None, None)
-            else:
-                sentry = shells_time_seq[idx]
-            particles_shells_time_seq.append(
-                (pentry[0], pentry[1], pentry[2], sentry[1], sentry[2]))
         
         return species_list, particles_time_seq, \
-                particles_shells_time_seq, world_size
-    
+                shells_time_seq, world_size
 
-    def render_with_domain(self, hdf5_file_name, time_group_name, 
-            shells_hdf5_file_name, shells_time_group_name):
+
+    def render(self, frame_data, render_mode):            
         
-        hdf5_file = h5py.File(hdf5_file_name, 'r')
-        shells_hdf5_file = None
-        if shells_hdf5_file_name is not None:
-            if shells_hdf5_file_name != hdf5_file_name:
-                shells_hdf5_file = h5py.File(shells_hdf5_file_name, 'r')
-            else:
-                shells_hdf5_file = hdf5_file
-
-        try:
-            data_group = hdf5_file['data']
-            species_dataset = hdf5_file['species']
-
-            world_size = data_group.attrs['world_size']
-            time_group = data_group[time_group_name]
-            t = time_group.attrs['t'] 
-
-            shells_dataset = None
-            domain_shell_assoc = None
-            domains_dataset = None
-
-            if shells_hdf5_file is not None:
-                shells_time_group = shells_hdf5_file['data'][shells_time_group_name]
-                shells_dataset = shells_time_group['shells']
-                domain_shell_assoc = shells_time_group['domain_shell_association']
-                domains_dataset = shells_time_group['domains']
-
-            self._renderer.render_with_domain(t, time_group['particles'],
-                    shells_dataset, domain_shell_assoc, domains_dataset)
-
-        finally:
-            if shells_hdf5_file is not None and \
-               shells_hdf5_file is not hdf5_file:
-                shells_hdf5_file.close()
-
-            hdf5_file.close()
+        if render_mode==0:
+            frame_data.load_last_data()
+            self._renderer.render_snapshot(frame_data)
+        elif render_mode==3:
+            frame_data.load_last_data()
+            self._renderer.render_fluori3d(frame_data)
+        else:
+            raise VisualizerError( \
+            'ParticleVisualizer not support render_mode='+str(render_mode))
 
 
-    def output_frames_with_domain(self):
-        """
-        Output snapshot image of particle and shell from HDF5 dataset
-        """
-
-        # Create image file folder
-        if not os.path.exists(self.image_file_dir):
-            os.makedirs(self.image_file_dir)
-
-        time_count = 0
-        frame_list = []
-
-        for entry in self.particles_shells_time_seq:
-            image_file_name = \
-                os.path.join(self.image_file_dir,
-                             self.settings.image_file_name_format % time_count)
-            self.render_with_domain(*entry[1:])
-            self.save_rendered(image_file_name)
-            frame_list.append(image_file_name)
-            time_count += 1
-
-        return frame_list
-    
-    
-    def output_movie_with_domain(self):
-        """
-        Output movie(particles with shells) to movie_file_dir
-        This function creates temporal image files to output the movie.
-        These temporal files and directory are removed after the output.
-        """
-        self.output_movie_with_domain()
-        self.make_movie()
-
-
-    def render(self, frame_data, render_mode):
-        if render_mode!=0:
-            raise VisualizerError('ParticleVisualizer support render_mode=0 only')
-        
-        frame_data.load_last_data()
-        self._renderer.render_snapshot(frame_data)
 
 

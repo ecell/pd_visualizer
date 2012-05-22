@@ -6,6 +6,7 @@
 """
 
 from rgb_colors import *
+from numpy import sqrt
 
 
 #-----------------------------
@@ -15,7 +16,7 @@ ignore_open_errors = False
 offscreen_rendering = False
 render_particles = True
 render_shells = True
-scaling = 1
+scaling = 1.0
 
 #-----------------------------
 # Output image settings
@@ -50,11 +51,11 @@ exposure_time = frame_interval
 #-----------------------------
 # Camera settings
 #-----------------------------
-# Focal point of x,y,z (This unit is world_size)
-camera_focal_point = (0.5, 0.5, 0.5)
-
 # Base position of x,y,z (This unit is world_size)
 camera_base_position = (-2.0, 0.5, 0.5)
+
+# Focal point of x,y,z (This unit is world_size)
+camera_focal_point = (0.5, 0.5, 0.5)
 
 # Movement along azimuth direction from base position [degree]
 camera_azimuth = 0.0
@@ -123,13 +124,13 @@ plane_surface_axis_2 = (0, 1, 0)
 plane_surface_list = []
 
 #-----------------------------
+# particle setting
+#-----------------------------
+particle_sphere_resolution=16
+
+#-----------------------------
 # Fluorimetry 2D settings
 #-----------------------------
-# View direction from camera position
-fluori2d_view_direction=(0.0, 0.0, 0.0)
-
-# Focus depth form camera position
-fluori2d_depth=1.0
 
 # Focus plane point
 fluori2d_point=(0.0, 0.0, 0.0)
@@ -137,15 +138,24 @@ fluori2d_point=(0.0, 0.0, 0.0)
 # Normal vector of focus plane
 fluori2d_normal_direction=(1.0, 0.0, 0.0)
 
-# Cut off distance
-fluori2d_cutoff=1.0e-10
+# Cut off depth
+fluori2d_cutoff_depth=1.0e-10
 
 # Range of point spreading function
-fluori2d_psf_range=1.0e-10
+fluori2d_cutoff_psf=4.0e-10
 
-# Base time length for evaluating strength.
-#fluori2d_base_time=1.0e-7
+# Length of a pixel(Resolution). 
+fluori2d_pixel_len=4.0e-11
 
 # Image file name
 fluori2d_file_name_format='fluori2d_%04d.png'
+
+# Intense fuction parameter => I0, d
+fluori2d_intense_param=(1.0, 2.0)
+
+# Gauss function parameter => g0, s0, s1
+fluori2d_gauss_param=(1.0, 2.0e-10, 2.0e-10)
+
+# Airy function parameter => I0a, g0, s0, s1
+fluori2d_airy_param=(4.0, 1.0, 1.0e-10, 1.0e-10)
 

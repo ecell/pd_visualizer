@@ -1,5 +1,8 @@
-import os
+
 import sys
+import os
+import copy
+
 import tempfile
 import time
 
@@ -7,18 +10,15 @@ import h5py
 import vtk
 import numpy
 
-
-import rgb_colors
 import default_settings
-import copy
-
 import lattice_default_settings
 import lattice_handler
 
-from visualizer import VisualizerError, \
-    Settings, Renderer, Visualizer
-from frame_handler import LATTICE_SPACE
 
+from frame_handler import LATTICE_SPACE, LsParticleData
+from visualizer import VisualizerError, Settings, \
+    Renderer, Visualizer
+from fluori2d_drawer import gauss_func
 
 def alpha_blend(blend, color):
     """
@@ -52,6 +52,7 @@ class LatticeSettings(Settings):
         settings_dict.update(settings_dict_lattice)
         
         self.alpha_blend_func=alpha_blend
+        self.fluori2d_psf_func=gauss_func
         
         # user setting
         if user_settings_dict is not None:
@@ -69,22 +70,8 @@ class LatticeSettings(Settings):
                 setattr(self, key, copy_val)
 
 
-    def set_lattice(self,sphere_resolution=None):
-        self._set_data('lattice_sphere_resolution', sphere_resolution)     
-
-    def pfilter_func(self, particle, display_species_id, pattr):
-        return pattr
-
-    def pfilter_sid_map_func(self, species_id):
-        return species_id
-
-    def pfilter_sid_to_pattr_func(self, display_species_id):
-        return self.particle_attrs.get(display_species_id,
-                                       self.default_particle_attr)
-
     def alpha_blend_func(self, blend, color):
         return blend
-
 
 
 class LatticeRenderer(Renderer):
@@ -102,29 +89,34 @@ class LatticeRenderer(Renderer):
 
     
     def _set_sizes(self, lattice_dic):
-        # using first lattice for evaluating the scalings and the world_sizes 
+        """
+        Calculate scaling and world_size.
+        using first lattice for evaluating the scalings 
+        and the world_sizes 
+        """
         first_key=lattice_dic.keys()[0]
         lattice = lattice_dic[first_key]
-        scalings = lattice.get_scalings()
-        world_sizes = lattice.get_world_sizes()
+
+        scaling=lattice.get_scalings()
+        self._max_scaling=max(scaling)
+        self._scalings=scaling/self._max_scaling*self.settings.scaling
+        self._world_sizes = lattice.get_world_sizes()
         
-        max_len = max(scalings)
-        self._axes_ratio = (float(scalings[0])/max_len,
-            float(scalings[1])/max_len, float(scalings[2])/max_len)
-        self.settings.scaling = max_len
-        self._world_size = max(world_sizes)
-        
-    
+        self.settings.world_size = max(self._world_sizes)
+        self.settings.length_ratio = self.settings.scaling \
+            *lattice.get_length_ratio()/self._max_scaling
+
+
     def _create_axes(self):
         axes = vtk.vtkCubeAxesActor2D()
-        axes.SetBounds(numpy.array(
-                [0.0, self._axes_ratio[0],
-                 0.0, self._axes_ratio[1], 
-                 0.0, self._axes_ratio[2]]) * self.settings.scaling)
+        axes.SetBounds(
+                [0.0, self._scalings[0],
+                 0.0, self._scalings[1], 
+                 0.0, self._scalings[2]])
         axes.SetRanges(
-                 0.0, self._axes_ratio[0]*self._world_size,
-                 0.0, self._axes_ratio[1]*self._world_size,
-                 0.0, self._axes_ratio[2]*self._world_size)
+                 0.0, self._world_sizes[0],
+                 0.0, self._world_sizes[1],
+                 0.0, self._world_sizes[2])
         axes.SetLabelFormat('%g')
         axes.SetFontFactor(1.5)
         tprop = vtk.vtkTextProperty()
@@ -140,14 +132,15 @@ class LatticeRenderer(Renderer):
 
     def _create_wireframe_cube(self):
         cube = vtk.vtkCubeSource()
-        cube.SetBounds(numpy.array(
-                [0.0, self._axes_ratio[0],
-                 0.0, self._axes_ratio[1], 
-                 0.0, self._axes_ratio[2]]) * self.settings.scaling)
-        cube.SetCenter(numpy.array(
-                [self._axes_ratio[0]/2.0,
-                 self._axes_ratio[1]/2.0,
-                 self._axes_ratio[2]/2.0]) * self.settings.scaling)
+        cube.SetBounds(
+                [0.0, self._scalings[0],
+                 0.0, self._scalings[1], 
+                 0.0, self._scalings[2]])
+
+        cube.SetCenter(
+                [self._scalings[0]/2.0,
+                 self._scalings[1]/2.0,
+                 self._scalings[2]/2.0])
         
         mapper = vtk.vtkPolyDataMapper()
         mapper.SetInputConnection(cube.GetOutputPort())
@@ -157,139 +150,82 @@ class LatticeRenderer(Renderer):
         actor.GetProperty().SetRepresentationToWireframe()
         return actor 
 
-
-    def _render_particles(self, particle_draw_list):
+    
+    def _get_staytime_list(self, frame_data):
         """
-        particles_draw_list is already set attribute of color
-        particle_draw_list=[(lattice, voxel_list)]
-        voxcel_list=[(voxel id, (r,g,b,a))]
+        Create list for rendering particle 
+        The item is the lattice object and blended particle.
+        
+        voxel_dics={lattice_id: voxel_dic}
+        voxel_dic={voxel_id: stay_list}
         """
-        for particle_draw in particle_draw_list:
-            lattice = particle_draw[0]
-            voxel_list = particle_draw[1]
-            if len(voxel_list) == 0: continue
+        msc=self.settings.scaling/self._max_scaling
+        voxel_dics=self._evaluate_staytime(frame_data)
+        
+        particle_list=[]
+        for key in voxel_dics.keys():
+            voxel_dic=voxel_dics[key]
+            if voxel_dic is None: continue
             
-            radius = lattice.get_normalized_radius()
-            for i,voxel in enumerate(voxel_list):
-                if i%1000==0: print 'create sphere',i
-                sphere = vtk.vtkSphereSource()
-                sphere.SetRadius(radius)
-#                print 'id='+str(voxel[0])+':'+str(lattice.coord2point(int(voxel[0])))
-                sphere.SetCenter(lattice.coord2point(int(voxel[0]))) # cast int64 to int
-                sphere.SetThetaResolution(self.settings.lattice_sphere_resolution)
-                sphere.SetPhiResolution(self.settings.lattice_sphere_resolution)
-
-                mapper = vtk.vtkPolyDataMapper()
-                mapper.SetInput(sphere.GetOutput())
-
-                sphere_actor = vtk.vtkActor()
-                sphere_actor.SetMapper(mapper)
-                sphere_actor.GetProperty().SetColor(voxel[1][0:3])
-                sphere_actor.GetProperty().SetOpacity(voxel[1][3])
-
-                self.renderer.AddActor(sphere_actor)
-
-        
-    def _get_snapshot_list(self, frame_data):
-        """
-        particle_draw_list=[(lattice, voxel_list)]
-        lattice_voxel_dic=[lattice_id, voxel_list]
-        voxcel_list=[(voxel_id, (r,g,b,a))]
-        
-        felem : FrameElem object
-        particle : LsParticle object
-        
-        """
-        particle_draw_list=[]
-        lattice_voxel_dic={}
-        
-        felem=frame_data.get_last_data()
-        if felem.get_particles() is None: return particle_draw_list
-        for particle in felem.get_particles():
-            voxel_list=lattice_voxel_dic.setdefault(particle.lattice_id,[])
-            # get color from attribute by species_id 
-            disp_id=self._species_idmap[particle.species_id]
-            attr=self._pattrs[disp_id]
-            rgb=attr['color']
-            color=[rgb[0], rgb[1], rgb[2], 1.0]
-            voxel_list.append((particle.id, color))
-        
-        for key in lattice_voxel_dic.keys():
+            # get lattice
             lattice=self.lattice_dic[key]
-            voxel_list=lattice_voxel_dic[key]
-            particle_draw_list.append((lattice, voxel_list))
+            
+            for id in voxel_dic.keys():
+                # blend color
+                rgba=self._blend_particle_color(voxel_dic[id])
+                
+                # create new lattice particle data
+                part=LsParticleData()
+                part.set_id(id)
+                part.set_positions(numpy.array(lattice.coord2point(id))*msc)
+                part.set_color((rgba[0], rgba[1], rgba[2]))
+                part.set_radius(lattice.get_normalized_radius()*msc)
+                part.set_strength(rgba[3])
+              
+                particle_list.append(part)
         
-        return particle_draw_list
+        return particle_list
 
 
     def _evaluate_staytime(self, frame_data):
         """
-        Evaluate normalized stay time of particle.
+        Evaluate normalized stay time of part.
+        
         voxel_dics={lattice_id: voxel_dic}
-        voxel_dic={voxel_id: [(species_id, normalized_stay_time)]}
+        voxel_dic={voxel_id: stay_list}
+        stay_list=[(rgb_list, normalized_stay_time)]
         
         felem : FrameElem object
-        particle : LsParticle object
+        part : LsParticle object
         """
-        self.voxel_dics={}
-        
+        voxel_dics={}
         for key in self.lattice_dic.keys():
-            self.voxel_dics.update({key:{}})
+            voxel_dics.update({key:{}})
         
         for felem in frame_data.get_dataset():
             if felem.get_particles() is None: continue
-            for particle in felem.get_particles():
-                voxel_dic=self.voxel_dics[particle.lattice_id]
-                stay_list=voxel_dic.setdefault(particle.id,[])
-                stay_list.append((particle.species_id, felem.get_eval_time()))
-
-    
-    def _get_staytime_list(self):
-        """
-        Create list for rendering particle 
-        The item is the lattice object and blended particle.
-        particle_draw_list=[(lattice, voxel_list)]
-        voxcel_list=[(voxel_id, (r,g,b,a))]
-        """
-        assert self.voxel_dics is not None
-        
-        particle_draw_list=[]
-        for key in self.voxel_dics.keys():
-            voxel_dic=self.voxel_dics[key]
-            if voxel_dic is None: continue
+            for part in felem.get_particles():
+                voxel_dic=voxel_dics[part.get_lattice_id()]
+                stay_list=voxel_dic.setdefault(part.get_id(),[])
+                
+                pcol=self._get_particle_color(part)
+                if pcol is None: continue
+                stay_list.append((pcol, felem.get_eval_time()))
             
-            voxel_list=[]
-            for id in voxel_dic.keys():
-                rgba=self._blend_particle_color(voxel_dic[id])
-                voxel_list.append((id, rgba))
-            print 'voxel num=',len(voxel_list) # for debug
-            particle_draw_list.append(
-                (self.lattice_dic[key], voxel_list))
-        
-        return particle_draw_list
-        
+        return voxel_dics;
+
 
     def _blend_particle_color(self, stay_list):
         """
         Blend color each voxel input stay_list.
-        stay_list=[(species_id, normalized_stay_time)]
+        stay_list=[(rgb_list, normalized_stay_time)]
         """
+#        if len(stay_list) >= 2:
+#            print 'len(stay_list)=',len(stay_list)
+        
         for i, stay in enumerate(stay_list):
-            # get attribute
-            display_species_id=self._species_idmap[stay[0]]
-            if display_species_id is None :
-                continue
-            pattr=self._pattrs.get(display_species_id)
-            if pattr is None:
-                continue
-            # use species_id as particle(first argument)
-            pattr = self.settings.pfilter_func(
-                    stay[0], display_species_id, pattr)
-            if pattr is None:
-                continue
-            
             # get color and blend
-            rgb=pattr['color']
+            rgb=stay[0]
             color=[rgb[0], rgb[1], rgb[2], stay[1]]
             if i==0:
                 blend=color
@@ -299,6 +235,54 @@ class LatticeRenderer(Renderer):
         return blend
 
 
+    def _get_particle_color(self, part):
+        # get color from attribute by species_id
+        species_id=part.get_species_id()
+        if species_id is None: return None
+        
+        disp_id=self._species_idmap[species_id]
+        if disp_id is None: return None
+        
+        pattr=self._pattrs[disp_id]
+        pattr=self.settings.pfilter_func(part, species_id, pattr)
+        if pattr is None: return None
+        
+        return pattr['color']
+        
+
+    def _felem_to_plist(self, felem, strength=None):
+        msc=self.settings.scaling/self._max_scaling
+        particle_list=[]
+        
+        if felem.get_particles() is None: return particle_list
+        for part in felem.get_particles():
+            
+            # get lattice
+            lattice=self.lattice_dic[part.get_lattice_id()]
+            
+            # calculate coordinate
+            part.set_positions(numpy.array(
+                    lattice.coord2point(part.get_id()))*msc)
+            
+            # set color
+            pcol= self._get_particle_color(part)
+            if pcol is None: continue
+            part.set_color(pcol)
+            
+            # set radius for visualize length
+            part.set_radius(lattice.get_normalized_radius()*msc)
+            
+            # set evaluate time as strength
+            if strength is None:
+                part.set_strength(felem.get_eval_time())
+            else:
+                part.set_strength(1.0)
+            
+            particle_list.append(part)
+            
+        return particle_list
+
+
     def render_snapshot(self, frame_data):
         self._reset_actors()
 
@@ -306,38 +290,33 @@ class LatticeRenderer(Renderer):
         if self._time_legend is not None:
             self._time_legend.SetEntryString(0,
                 self.settings.time_legend_format % t)
-
+            
         t1=time.time()
-        particle_draw_list=self._get_snapshot_list(frame_data)
+        particle_list=self._get_snapshot_list(frame_data)
         t2=time.time()
-        print '[LatticeRenderer]_get_snapshot_list :',t2-t1
-
-        self._render_particles(particle_draw_list)
+        print '[Renderer]_get_snapshot_list :',t2-t1
+        
+        self._render_particle_list(particle_list)
         t3=time.time()
-        print '[LatticeRenderer]_render_paricles :',t3-t2
+        print '[Renderer]_render_particle_list :',t3-t2
 
 
     def render_staytime(self, frame_data):
         self._reset_actors()
 
-        st=frame_data.get_start_time()
         et=frame_data.get_end_time()
         if self._time_legend is not None:
             self._time_legend.SetEntryString(0,
                 self.settings.time_legend_format % et)
-#            self._time_legend.SetEntryString(0,
-#                '%5.2e - %5.2e' % (st,et))
 
         t1=time.time()
-        self._evaluate_staytime(frame_data)
+        particle_list=self._get_staytime_list(frame_data)
         t2=time.time()
-        print '[Renderer]_evaluate_staytime :',t2-t1
-        particle_draw_list=self._get_staytime_list()
+        print '[Renderer]_get_staytime_list :',t2-t1
+        
+        self._render_particle_list(particle_list)
         t3=time.time()
-        print '[Renderer]_get_staytime_list :',t3-t2
-        self._render_particles(particle_draw_list)
-        t4=time.time()
-        print '[Renderer]_render_particles :',t4-t3
+        print '[Renderer]_render_particles :',t3-t2
         
 
 class LatticeVisualizer(Visualizer):
@@ -368,11 +347,12 @@ class LatticeVisualizer(Visualizer):
         
         # create frame data
         t4_1=time.time()
-        particles_frames = \
-            self._create_frame_datas(particles_time_seq, LATTICE_SPACE)
-        self.particles_frames = particles_frames
+        self.frame_datas = \
+            self._create_frame_datas(LATTICE_SPACE, particles_time_seq)
+        self.frame_datas_as = \
+            self._create_frame_datas_as(LATTICE_SPACE, particles_time_seq)
         t4_2=time.time()
-        print '[LatticeVisualizer]_interpolate_time :',t4_2-t4_1
+        print '[LatticeVisualizer]_create_frame_datas :',t4_2-t4_1
         
         # create renderer and window
         self._renderer = LatticeRenderer(
@@ -448,14 +428,11 @@ class LatticeVisualizer(Visualizer):
         if render_mode==0:
             frame_data.load_last_data()
             self._renderer.render_snapshot(frame_data)
-
         elif render_mode==1:
             frame_data.load_dataset()
             self._renderer.render_staytime(frame_data)
-
         else:
-            raise VisualizerError(
-                'render_mode= ' + str(render_mode) + ' is illegal.: ' \
-                +'snapshot=0, stay-time=1')
+            raise VisualizerError( \
+            'LatticeVisualizer not support render_mode='+str(render_mode))
  
 

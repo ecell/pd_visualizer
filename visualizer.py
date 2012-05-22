@@ -14,6 +14,15 @@ visualizer.py:
         Bug fixes:
             - Fixed a bug caused that newly created Settings object has history
               of the old objects.
+    Revision 2 (2011/2/25 released)
+        New features:
+            - Add lattice space handler
+            - Add stay time view mode
+
+    Revision 3 (2012/3/30 released)
+            - Modify module composition
+        New features:
+            - Add fluori2d view mode
 
     This module uses following third-party libraries:
       - VTK (Visualization Tool Kit)
@@ -25,19 +34,18 @@ visualizer.py:
 
 """
 
-import os
 import sys
-import tempfile
-import math
+import os
+import copy
+
 import time
 
-import h5py
 import vtk
 import numpy
 
-import rgb_colors
 import default_settings
-import copy
+import rgb_colors
+
 
 from frame_handler import FrameElem, FrameData
 from fluori2d_drawer import Fluori2dDrawer
@@ -61,22 +69,7 @@ class Settings(object):
     "Visualization setting class for Visualizer"
 
     def __init__(self, user_settings_dict = None):
-
-        settings_dict = default_settings.__dict__.copy()
-
-        if user_settings_dict is not None:
-            if type(user_settings_dict) != type({}):
-                print 'Illegal argument type for constructor of Settings class'
-                sys.exit()
-            settings_dict.update(user_settings_dict)
-
-        for key, val in settings_dict.items():
-            if key[0] != '_': # Data skip for private variables in setting_dict.
-                if type(val) == type({}) or type(val) == type([]):
-                    copy_val = copy.deepcopy(val)
-                else:
-                    copy_val = val
-                setattr(self, key, copy_val)
+        print 'need to override Settings#__init__()'
 
     def _set_data(self, key, val):
         if val != None:
@@ -183,22 +176,29 @@ class Settings(object):
         self._set_data('axis_annotation_display', display)
         self._set_data('axis_annotation_color', color)
 
-    def set_fluorimetry2d(self,
-                          view_direction=None,
-                          depth=None,
+    def set_particle(self,sphere_resolution=None):
+        self._set_data('particle_sphere_resolution', sphere_resolution)
+
+    def set_fluori2d(self,
                           point=None,
                           normal_direction=None,
-                          cutoff=None,
-                          psf_range=None,
-                          file_name_format=None
+                          cutoff_depth=None,
+                          cutoff_psf=None,
+                          pixel_len=None,
+                          file_name_format=None,
+                          intense_param=None,
+                          gauss_param=None,
+                          airy_param=None
                           ):
-        self._set_data('fluori2d_view_direction', view_direction)
-        self._set_data('fluori2d_depth', depth)
         self._set_data('fluori2d_point', point)
         self._set_data('fluori2d_normal_direction', normal_direction)
-        self._set_data('fluori2d_cutoff', cutoff)
-        self._set_data('fluori2d_psf_range', psf_range)
+        self._set_data('fluori2d_cutoff_depth', cutoff_depth)
+        self._set_data('fluori2d_cutoff_psf', cutoff_psf)
+        self._set_data('fluori2d_pixel_len', pixel_len)
         self._set_data('fluori2d_file_name_format', file_name_format)
+        self._set_data('fluori2d_intense_param', intense_param)
+        self._set_data('fluori2d_gauss_param', gauss_param)
+        self._set_data('fluori2d_airy_param', airy_param)
 
 
     def add_plane_surface(self,
@@ -226,6 +226,20 @@ class Settings(object):
                                         'origin':origin_,
                                         'axis1':axis1_,
                                         'axis2':axis2_})
+
+    def pfilter_func(self, particle, display_species_id, pattr):
+        return pattr
+
+    def pfilter_sid_map_func(self, species_id):
+        return species_id
+
+    def pfilter_sid_to_pattr_func(self, display_species_id):
+        return self.particle_attrs.get(display_species_id,
+                                       self.default_particle_attr)
+
+    def fluori2d_psf_func(self, r, dis):
+        return r
+
 
     def dump(self):
         dump_list = []
@@ -439,9 +453,9 @@ class Renderer(object):
         for x in self.settings.plane_surface_list:
             actor = vtk.vtkActor()
             plane = vtk.vtkPlaneSource()
-            plane.SetOrigin(x['origin'] * scaling)
-            plane.SetPoint1(x['axis1'] * scaling)
-            plane.SetPoint2(x['axis2'] * scaling)
+            plane.SetOrigin(numpy.array(x['origin']) * scaling)
+            plane.SetPoint1(numpy.array(x['axis1']) * scaling)
+            plane.SetPoint2(numpy.array(x['axis2']) * scaling)
 
             mapper = vtk.vtkPolyDataMapper()
             mapper.SetInput(plane.GetOutput())
@@ -480,8 +494,60 @@ class Renderer(object):
         for plane in self._plane_list:
             self.renderer.AddActor(plane)
 
-    def _render_particles(self):
-        print 'need to override Renderer#_render_particles()'
+    def _get_fluori2d_plist(self, frame_data):
+        particle_list=[]
+
+        for felem in frame_data.get_dataset():
+            plist=self._felem_to_plist(felem, 1.0)
+            particle_list += plist
+
+        return particle_list
+
+
+    def _render_particle_list(self,particle_list):
+        self._reset_actors()
+
+        for i, particle in enumerate(particle_list):
+            if i%1000==0: print 'create sphere',i
+
+            sphere = vtk.vtkSphereSource()
+
+            sphere.SetRadius(particle.get_radius())
+            sphere.SetCenter(particle.get_positions())
+            sphere.SetThetaResolution(self.settings.particle_sphere_resolution)
+            sphere.SetPhiResolution(self.settings.particle_sphere_resolution)
+
+            mapper = vtk.vtkPolyDataMapper()
+            mapper.SetInput(sphere.GetOutput())
+
+            sphere_actor = vtk.vtkActor()
+            sphere_actor.SetMapper(mapper)
+            sphere_actor.GetProperty().SetColor(particle.get_color())
+            sphere_actor.GetProperty().SetOpacity(particle.get_strength())
+
+            self.renderer.AddActor(sphere_actor)
+
+    def _render_plist_direct(self, particle_list):
+        self._reset_actors()
+        self._render_particle_list(particle_list)
+
+
+    def _get_snapshot_list(self, frame_data):
+        """
+        Create particle-list for snapshot mode.
+
+        """
+        felem=frame_data.get_last_data()
+        particle_list=self._felem_to_plist(felem, 1.0)
+
+        return particle_list
+
+
+    def _felem_to_plist(self, felem, strength=None):
+        print 'need to override Visualizer#_felem_to_plist()'
+
+
+
 
 
 
@@ -509,8 +575,10 @@ class Visualizer(object):
         window.AddRenderer(self._renderer.renderer)
         self.window = window
 
-    def _create_frame_datas(self, particles_time_seq, space_type):
-        time_seq=[]
+
+    def _create_frame_datas(self, space_type, \
+                particles_time_seq, shell_time_seq=None):
+        particle_frames=[]
         frame_t=[]
         expos_t=[]
 
@@ -532,7 +600,7 @@ class Visualizer(object):
             if(ft >= self.settings.frame_end_time):break
             counter+=1
 
-        # create frame data composed by one frame data
+        # create frame data composed by frame element data
         for step in range(len(frame_t)):
             ft=frame_t[step]
             et=expos_t[step]
@@ -544,13 +612,16 @@ class Visualizer(object):
             for index in range(len(particles_time_seq)):
                 if index == 0 : continue
                 st=particles_time_seq[index][0]
-                if(et<=st and st<=ft):
+                if(et-st<=ignore_dtime and st-ft<=ignore_dtime):
                     st_f=particles_time_seq[index-1][0]
                     stay_time=min(st-st_f, st-et)
                     norm_stime=stay_time/self.settings.exposure_time
 
                     pdata=particles_time_seq[index-1]
-                    felem=FrameElem(pdata[0],pdata[1],pdata[2])
+                    sdata, d_idx=self._interpolate_shell_data(
+                            shell_time_seq, pdata)
+
+                    felem=FrameElem(pdata[0],pdata[1],pdata[2],sdata[1],sdata[2])
                     felem.set_eval_time(norm_stime)
                     frame_data.append(felem)
 
@@ -562,16 +633,62 @@ class Visualizer(object):
 
             st=particles_time_seq[last_index][0]
             pdata=particles_time_seq[last_index]
-            felem=FrameElem(pdata[0],pdata[1],pdata[2])
+            sdata, d_idx=self._interpolate_shell_data(
+                            shell_time_seq, pdata)
+
+            felem=FrameElem(pdata[0],pdata[1],pdata[2],sdata[1],sdata[2])
             stay_time=ft-st
             if stay_time > ignore_dtime:
                 norm_stime=stay_time/self.settings.exposure_time
                 felem.set_eval_time(norm_stime)
                 frame_data.append(felem)
 
-            time_seq.append(frame_data)
+            particle_frames.append(frame_data)
 
-        return time_seq
+        return particle_frames
+
+
+    def _create_frame_datas_as(self, space_type, \
+                particles_time_seq, shells_time_seq=None):
+        frame_datas=[]
+
+        idx = 0
+        for pdata in particles_time_seq:
+            sdata, idx = self._interpolate_shell_data(
+                            shells_time_seq, pdata, idx)
+
+            felem=FrameElem(pdata[0],pdata[1],pdata[2],sdata[1],sdata[2])
+            frame_data=FrameData(space_type)
+            frame_data.set_start_time(pdata[0])
+            frame_data.set_end_time(pdata[0])
+            frame_data.append(felem)
+
+            frame_datas.append(frame_data)
+
+        return frame_datas
+
+
+    def _interpolate_shell_data(self, shells_time_seq, pdata, idx=0):
+        """
+        Interpolate shell data using former exist data, if there is
+        no data for corresponding time step of particle data.
+        Properly index(idx) can be search faster(default value=0).
+        """
+        if shells_time_seq is not None:
+            while idx < len(shells_time_seq) \
+                and shells_time_seq[idx][0] <= pdata[0]:
+                idx += 1
+            idx -= 1
+            if idx < 0:
+                idx = 0
+                sdata = (None, None, None)
+            else:
+                sdata = shells_time_seq[idx]
+        else:
+            sdata = (None, None, None)
+
+        return sdata,idx
+
 
     def save_rendered(self, image_file_name):
         "Output snapshot to image file"
@@ -618,93 +735,194 @@ class Visualizer(object):
         interactor.SetRenderWindow(self.window)
         interactor.Initialize()
 
-        for i, frame_data in enumerate(self.particles_frames):
+        for i, frame_data in enumerate(self.frame_datas):
             if (select_frame==None) or (i in select_frame):
                 self.render(frame_data, render_mode)
                 self.window.Render()
                 interactor.Start()
 
+    def _render_plists_interactive(self, particle_lists):
+        # initialize interactor
+        interactor = vtk.vtkRenderWindowInteractor()
+        interactor.SetRenderWindow(self.window)
+        interactor.Initialize()
 
-    def output_frames(self, render_mode=0):
-        """
-        Output frame images from HDF5 dataset
-        render_mode=0 : snapshot image
-        render_mode=1 : stay-time image
-        """
+        for particle_list in particle_lists:
+            self._renderer._render_plist_direct(particle_list)
+            self.window.Render()
+            interactor.Start()
 
-        # Create image file folder
+
+    def _create_image_folder(self):
+        """
+        Check and create the folder for image file.
+        """
         if not os.path.exists(self.image_file_dir):
             os.makedirs(self.image_file_dir)
         else:
             for file in os.listdir(self.image_file_dir):
                 os.remove(os.path.join(self.image_file_dir, file))
 
-        time_count = 0
-        frame_list = []
 
-        for frame_data in self.particles_frames:
-            image_file_name = \
-                os.path.join(self.image_file_dir,
-                             self.settings.image_file_name_format % time_count)
-            t1=time.time()
-            self.render(frame_data, render_mode)
-            t2=time.time()
-            print '[LatticeVisualizer] render time :',t2-t1
-            self.save_rendered(image_file_name)
-            t3=time.time()
-            print '[LatticeVisualizer] save_rendered time :',t3-t2
-            frame_list.append(image_file_name)
-            time_count += 1
-
-        return frame_list
-
-
-    def output_movie(self, render_mode=0):
-        """
-        Output movie to movie_file_dir
-        This function creates temporal image files to output the movie.
-        These temporal files and directory are removed after the output.
-        """
-        self.output_frames(render_mode)
-        self.make_movie()
-
-
-    def make_movie(self):
+    def make_movie(self, image_file_dir, image_file_name_format):
         """
         Make a movie by FFmpeg
         Please install FFmpeg (http://ffmpeg.org/) from the download site
          before use this function.
         """
         input_image_filename = \
-            os.path.join(self.image_file_dir,
-                         self.settings.image_file_name_format)
+            os.path.join(image_file_dir,
+                         image_file_name_format)
 
         # Set FFMPEG options
         options = self.settings.ffmpeg_additional_options \
             + ' -r '+ str(self.settings.ffmpeg_movie_fps) \
-            + ' -y -i "' + input_image_filename + '" -vcodec rawvideo -pix_fmt yuv420p ' \
+            + ' -y -i "' + input_image_filename + '" ' \
             + self._movie_filename
 
         os.system(self.settings.ffmpeg_bin_path + ' ' + options)
 
 
-    def output_fluori2d(self):
+    def output_frames(self, render_mode=0):
         """
-        Output 2D fluorimetry image.
+        Output frame images by frame data of constant interval
+        render_mode=0 : snapshot image
+        render_mode=1 : stay-time image (Lattice-space only)
+        render_mode=3 : fluori3d image (Particle-space only)
         """
-        # calculate focus plane
-        if self.settings.fluori2d_point==default_settings.fluori2d_point or \
-            self.settings.fluori2d_normal_direction==default_settings.fluori2d_normal_direction:
-            print 'define by direction and depth'
-        else:
-            print 'define by point and normal vector'
+        # Create image file folder
+        self._create_image_folder()
+
+        frame_list = []
+
+        for i, frame_data in enumerate(self.frame_datas):
+            image_file_name = os.path.join(self.image_file_dir,
+                self.settings.image_file_name_format % i)
+
+            t1=time.time()
+            self.render(frame_data, render_mode)
+            t2=time.time()
+            print '[Visualizer] render time :',t2-t1
+            self.save_rendered(image_file_name)
+            t3=time.time()
+            print '[Visualizer] save_rendered time :',t3-t2
+            frame_list.append(image_file_name)
+
+        return frame_list
+
+
+    def output_movie(self, render_mode=0):
+        """
+        Output movie by frame data of constant interval
+        render_mode=0 : snapshot image
+        render_mode=1 : stay-time image (Lattice-space only)
+        render_mode=3 : fluori3d image (Particle-space only)
+
+        This function creates temporal image files to output the movie.
+        These temporal files and directory are removed after the output.
+        """
+        self.output_frames(render_mode)
+        self.make_movie(self.image_file_dir,
+                        self.settings.image_file_name_format)
+
+
+    def output_frames_as(self, render_mode=0):
+        """
+        Output frame images by frame data at sampling point
+        render_mode=0 : snapshot image
+        render_mode=3 : fluori3d image (Particle-space only)
+        """
+        # check render mode
+        if render_mode==1 or render_mode==2:
+            raise VisualizerError('output_frames_as() is not'+\
+                ' support render_mode='+str(render_mode))
+
+        # Create image file folder
+        self._create_image_folder()
+
+        frame_list = []
+
+        for i,frame_data in enumerate(self.frame_datas_as):
+            image_file_name = os.path.join(self.image_file_dir,
+                self.settings.image_file_name_format % i)
+
+            self.render(frame_data, render_mode)
+            self.save_rendered(image_file_name)
+
+            frame_list.append(image_file_name)
+
+        return frame_list
+
+
+    def output_movie_as(self, render_mode=0):
+        """
+        Output frame images by frame data at sampling point
+        render_mode=0 : snapshot image
+        render_mode=3 : fluori3d image (Particle-space only)
+
+        This function creates temporal image files to output the movie.
+        These temporal files and directory are removed after the output.
+        """
+        self.output_frames_as(render_mode)
+        self.make_movie(self.image_file_dir,
+                        self.settings.image_file_name_format)
+
+
+    def output_frames_fluori2d(self, num_div=1, \
+            output_image=True, data_filename=None):
+        """
+        Output 2D fluorimetry frame image.
+        """
+        # Create image file folder
+        self._create_image_folder()
+
+        # Draw fluori2d
+        frame_list = []
+        fluori2d_datas=[]
+        dpart_lists=[]
 
         drawer = Fluori2dDrawer()
-        for frame_data in self.particles_frames:
-            frame_data.load_dataset()
-            flu_data=drawer.create_fluori2d_data(
-                self.settings.fluori2d_normal_direction,
-                self.settings.fluori2d_point,
-                self.settings.fluori2d_cutoff, frame_data)
+        for i, fdata in enumerate(self.frame_datas):
+            file_name = os.path.join(self.image_file_dir, \
+                self.settings.fluori2d_file_name_format % i)
+
+            # load HDF5 and get fluori2d particle-list
+            fdata.load_dataset()
+            particle_list = self._renderer._get_fluori2d_plist(fdata)
+
+            # get fluori2d data
+            fluori2d_data, dpart_list=drawer.get_fluori2d_data( \
+                particle_list,self.settings, \
+                fdata.get_start_time(), fdata.get_end_time(), file_name)
+
+            dpart_lists.append(dpart_list)
+
+            # draw fluori2d image
+            if output_image:
+                drawer.draw_fluori2d_data(fluori2d_data, num_div)
+
+            frame_list.append(file_name)
+
+            if data_filename is not None:
+                fluori2d_datas.append(fluori2d_data)
+
+        if not output_image:
+            self._render_plists_interactive(dpart_lists)
+
+        if data_filename is not None:
+            drawer.save_fluori2d_datas(data_filename, fluori2d_datas)
+
+        return frame_list
+
+
+    def output_movie_fluori2d(self, num_div=1):
+        """
+        Output 2D fluorimetry movie.
+        """
+        self.output_frames_fluori2d(num_div=num_div)
+
+        self.make_movie(self.image_file_dir,
+                        self.settings.fluori2d_file_name_format)
+
 
 

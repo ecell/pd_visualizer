@@ -147,6 +147,5 @@ default_domain_attr = {'color': RGB_BLACK, 'opacity':0.2}
 #-----------------------------
 # Micro fluorimetry settings
 #-----------------------------
-fluorimetry_display = False
 fluorimetry_axial_voxel_number = 100
 fluorimetry_shadow_display = False
