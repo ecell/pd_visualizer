@@ -174,6 +174,7 @@ catalog/dichroic/FF516-Di01-25x36.csv
 catalog/dichroic/FF520-Di02-25x36.csv
 catalog/dichroic/FF552-Di02-25x36.csv
 catalog/dichroic/FF560_659-Di01-25x36.csv
+catalog/dichroic/FF562-Di02-25x36.csv
 catalog/dichroic/FF562-Di03-25x36.csv
 catalog/dichroic/FF570-Di01-25x36.csv
 catalog/dichroic/FF585-Di01-25x36.csv
