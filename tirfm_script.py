@@ -24,7 +24,7 @@ def test_image() :
     #tirfm.get_SpectrumPlot(plot_filename='./plots/spectrum_plots.pdf')
 
     # create image and movie
-    image = TIRFMVisualizer(['./data/lattice/test_model_volume.h5'], movie_filename='./movies/test_model.mp4', settings=tirfm)
+    image = TIRFMVisualizer(['./data/lattice/test_model_volume.h5'], movie_filename='./test_model.mp4', settings=tirfm)
     image.output_movie(num_div=16)
 
 
