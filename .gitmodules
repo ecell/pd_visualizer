@@ -1,0 +1,3 @@
+[submodule "hdf5data"]
+	path = hdf5data
+	url = git@github.com:ecell/hdf5data.git
